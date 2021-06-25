@@ -2,6 +2,7 @@ import os
 import json
 import asyncio
 import discord
+from discord_slash import cog_ext, SlashCommand, SlashContext
 from discord import utils
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -20,6 +21,7 @@ class SquadsBot(commands.Bot):
 
 
 bot = SquadsBot(command_prefix=">", case_insensitive=True)
+slash = SlashCommand(bot, sync_commands=True)
 
 
 class ChannelCreator:
@@ -149,6 +151,10 @@ class VoiceHandler(commands.Cog, name="Voice Handler"):
                 voice_states = before.channel.voice_states
                 if len(voice_states) == 0:
                     left_temp_channel.delete()
+
+    @cog_ext.cog_slash(name="ping", guild_ids=[server_id])
+    async def ping(self, ctx: SlashContext):
+        await ctx.send(content="Pong!")
 
 
 bot.add_cog(VoiceHandler(bot))
