@@ -426,6 +426,18 @@ class OwnedChannelCommands(commands.Cog, name="Owned Channel Commands"):
         await temporary_channel.edit(user_limit=size)
         await context.send(f"Successfully limited {temporary_channel.channel.mention} to `{size}`")
 
+    @cog_ext.cog_slash(name="unlimit", guild_ids=[server_id],
+                       description="Unlimit your voice channel.",
+                       options=[create_option(name="active",
+                                              description="True = limit off, False = limit on",
+                                              option_type=5,
+                                              required=False)])
+    async def _unlimit(self, context, other):
+        temporary_channel = await self.get_owned_channel(context)
+        if temporary_channel:
+            await temporary_channel.edit(user_limit=None)
+            await context.send(f"Successfully unlimited {temporary_channel.channel.mention}")
+
     @cog_ext.cog_slash(name="rename", guild_ids=[server_id],
                        description="Rename your voice channel.",
                        options=[
@@ -442,7 +454,7 @@ class OwnedChannelCommands(commands.Cog, name="Owned Channel Commands"):
 
 
 bot.add_cog(VoiceHandler(bot))
-#bot.add_cog(CreationCommands(bot))
-#bot.add_cog(OwnedChannelCommands(bot))
+bot.add_cog(CreationCommands(bot))
+bot.add_cog(OwnedChannelCommands(bot))
 
 bot.run(token)
