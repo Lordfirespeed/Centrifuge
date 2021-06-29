@@ -1,9 +1,11 @@
 import os
+import re
 import json
 import asyncio
 import discord
+from collections import defaultdict
 from discord_slash import cog_ext, SlashCommand, SlashContext
-from discord_slash.utils.manage_commands import create_option, create_choice, create_permission
+from discord_slash.utils.manage_commands import create_option
 from discord import utils
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -12,6 +14,7 @@ load_dotenv()
 
 token = os.getenv("DISCORD_TOKEN")
 server_id = int(os.getenv("DISCORD_SERVER_ID"))
+server_ids = [server_id]
 
 
 class SquadsBot(commands.Bot):
@@ -45,7 +48,7 @@ class SquadsBot(commands.Bot):
     def dump_channel_creators(self):
         data = [{"channel_id": channel_creator.channel.id,
                  "create_name": channel_creator.create_name,
-                 "create_category_id": channel_creator.create_category.id,
+                 "create_category_id": channel_creator.create_category.id if channel_creator.create_category else None,
                  "create_user_limit": channel_creator.create_user_limit}
                 for channel_creator in self.channel_creators.values()]
         with open("channel-creators.json", "w") as writefile:
@@ -75,21 +78,17 @@ class ChannelCreator:
         self.created_channels = {}
         self.used_indexes = set()
 
-    def delete(self):
+    async def delete(self):
         cache = self.created_channels.copy().values()
         for created_channel in cache:
-            created_channel.delete(dump=False)
+            await created_channel.delete(dump=False)
         self.bot.dump_temporary_channels()
         del cache
 
-        async def remove_channel():
-            await self.channel.delete()
+        await self.channel.delete()
 
         del self.bot.channel_creators[self.channel.id]
         self.bot.dump_channel_creators()
-
-        loop = asyncio.get_event_loop()
-        loop.create_task(remove_channel())
 
     def get_minimum_unused_index(self):
         if len(self.used_indexes) == 0:
@@ -145,57 +144,82 @@ class TemporaryChannel:
         self.channel = channel
         self.category = category
         self.user_limit = user_limit
+        self.edited_recently = defaultdict(lambda: False)
         self.ready = asyncio.Event()
 
         async def ready_up():
             to_name = self.make_name()
-            if self.channel:
-                if self.channel.name != to_name or self.channel.user_limit != self.user_limit:
-                    await self.channel.edit(name=to_name, user_limit=self.user_limit)
-            else:
+            if not self.channel:
                 self.channel = await creator.channel.guild.create_voice_channel(to_name, category=self.category, user_limit=self.user_limit)
             self.ready.set()
 
         loop = asyncio.get_event_loop()
         loop.create_task(ready_up())
 
+    def make_edit_timer(self, time: int, property_name: str):
+        async def _job():
+            await asyncio.sleep(time)
+            self.edited_recently[property_name] = False
+        self.edited_recently[property_name] = asyncio.create_task(_job())
+
     def make_name(self):
-        return f"{self.name} {str(self.index)}"
+        if self.name == self.creator.create_name:
+            return f"{self.name} #{str(self.index)}"
+        else:
+            return self.name
 
-    def delete(self, dump=True):
+    async def delete(self, dump=True):
 
-        async def remove_channel():
-            await self.channel.delete()
+        await self.channel.delete()
 
         self.creator.used_indexes.remove(self.index)
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(remove_channel())
         del self.creator.created_channels[self.channel.id]
         del self.bot.all_temporary_channels[self.channel.id]
         if dump:
             bot.dump_temporary_channels()
 
-    async def edit(self, index: int = None, category: discord.CategoryChannel = False, name: str = None, user_limit: int = False):
+    async def edit(self, index: int = None, category: discord.CategoryChannel = False, name: str = None, user_limit: int = False, owner_user_id=None, forced=True):
         changed = False
+        on_timer = False
         if index:
-            self.index = index
-            changed = True
+            if self.edited_recently["index"]:
+                on_timer = True
+            elif not forced:
+                self.make_edit_timer(60, "index")
+                self.index = index
+                changed = True
 
         if category or category is None:
             self.category = category
             changed = True
 
         if name:
-            self.name = name
-            changed = True
+            if self.edited_recently["name"]:
+                on_timer = True
+            elif not forced:
+                self.make_edit_timer(60, "name")
+                self.name = name
+                changed = True
+
+        if owner_user_id:
+            self.owner_user_id = owner_user_id
+            # not changed as we do not need to actually edit the channel in discord
 
         if user_limit or user_limit is None:
-            self.user_limit = user_limit
-            changed = True
+            if self.edited_recently["user_limit"]:
+                on_timer = True
+            elif not forced:
+                self.make_edit_timer(60, "user_limit")
+                self.user_limit = user_limit
+                changed = True
 
-        if changed:
+        if on_timer and not forced:
+            return False
+
+        if changed and ((not on_timer) or forced):
             await self.channel.edit(name=self.make_name(), category=self.category, user_limit=self.user_limit)
+        return True
 
 
 @bot.event
@@ -216,10 +240,17 @@ class VoiceHandler(commands.Cog, name="Voice Handler"):
     async def on_ready(self):
         with open("channel-creators.json", "r") as readfile:
             channel_creators_data = json.load(readfile)
+
+        self.bot.channel_creators = {}
+        self.bot.all_temporary_channels = {}
+
         for channel_creator_data in channel_creators_data:
             channel_creator_data["channel"] = await self.bot.fetch_channel(channel_creator_data["channel_id"])
             del channel_creator_data["channel_id"]
-            channel_creator_data["create_category"] = await self.bot.fetch_channel(channel_creator_data["create_category_id"])
+            if channel_creator_data["create_category_id"]:
+                channel_creator_data["create_category"] = await self.bot.fetch_channel(channel_creator_data["create_category_id"])
+            else:
+                channel_creator_data["create_category"] = None
             del channel_creator_data["create_category_id"]
             channel_creator = ChannelCreator(self.bot, **channel_creator_data)
             self.bot.channel_creators[channel_creator.channel.id] = channel_creator
@@ -236,12 +267,15 @@ class VoiceHandler(commands.Cog, name="Voice Handler"):
                 await temporary_channel.ready.wait()
                 channel_creator.register_temporary_channel(temporary_channel, dump=False)
 
-    @commands.Cog.listener()
-    async def on_disconnect(self):
         self.bot.dump_temporary_channels()
         self.bot.dump_channel_creators()
-        self.bot.channel_creators = {}
-        self.bot.all_temporary_channels = {}
+
+    @commands.Cog.listener()
+    async def on_disconnect(self):
+        if self.bot.channel_creators:
+            self.bot.dump_channel_creators()
+        if self.bot.all_temporary_channels:
+            self.bot.dump_temporary_channels()
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, user, before, after):
@@ -257,19 +291,41 @@ class VoiceHandler(commands.Cog, name="Voice Handler"):
             if left_temp_channel:
                 voice_states = before.channel.voice_states
                 if len(voice_states) == 0:
-                    left_temp_channel.delete()
+                    await left_temp_channel.delete()
 
-    @cog_ext.cog_slash(name="ping", guild_ids=[server_id],
+    @cog_ext.cog_slash(name="ping", guild_ids=server_ids,
                        description="Checks bot latency")
     async def ping(self, ctx: SlashContext):
         await ctx.send(content=f"Pong! (`{round(self.bot.latency*1000)}ms`)")
+
+
+class HighLevel(commands.Cog, name="High Level"):
+    def __init__(self, bot):
+        self.bot = bot
+        self.restarting = False
+
+    @cog_ext.cog_slash(name="restart", description="Restart the bot.", guild_ids=server_ids)
+    async def _restart(self, context: SlashContext):
+        if await self.bot.is_owner(context.author) or await self.bot:
+            if not self.restarting:
+                self.restarting = True
+                path_to_start = os.path.join(os.path.dirname(__file__), "..", "start_bot.sh")
+                if os.path.exists(path_to_start) and os.path.isfile(path_to_start):
+                    await context.send(f"Restarting...")
+                    await self.bot.close()
+                    os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+                    os.execv(path_to_start, [" "])
+                else:
+                    await context.send(f"Failed to find bot start script.")
+        else:
+            await context.send(f"You don't have permission to use this.")
 
 
 class CreationCommands(commands.Cog, name="Creation Commands"):
     def __init__(self, bot):
         self.bot = bot
 
-    @cog_ext.cog_slash(name="create", guild_ids=[server_id],
+    @cog_ext.cog_slash(name="create", guild_ids=server_ids,
                        description="Create an incremental channel creator.",
                        options=[
                            create_option(name="name",
@@ -306,7 +362,7 @@ class CreationCommands(commands.Cog, name="Creation Commands"):
         self.bot.dump_channel_creators()
         await context.send("Created new incremental channel creator successfully.")
 
-    @cog_ext.cog_slash(name="delete", guild_ids=[server_id],
+    @cog_ext.cog_slash(name="delete", guild_ids=server_ids,
                        description="Delete an incremental channel creator.",
                        options=[
                            create_option(name="channel",
@@ -321,10 +377,10 @@ class CreationCommands(commands.Cog, name="Creation Commands"):
         if channel.id not in self.bot.channel_creators.keys():
             await context.send(f"{channel.mention} is not an incremental voice channel creator.")
         else:
-            self.bot.channel_creators[channel.id].delete()
+            await self.bot.channel_creators[channel.id].delete()
             await context.send(f"Successfully deleted incremental voice channel creator with ID `{channel.id}`")
 
-    @cog_ext.cog_slash(name="edit", guild_ids=[server_id],
+    @cog_ext.cog_slash(name="edit", guild_ids=server_ids,
                        description="Edit an incremental channel creator.",
                        options=[
                            create_option(name="channel",
@@ -384,7 +440,23 @@ class OwnedChannelCommands(commands.Cog, name="Owned Channel Commands"):
 
         return temporary_channel
 
-    @cog_ext.cog_slash(name="resize", guild_ids=[server_id],
+    async def do_limit_command(self, context, size, message):
+        temporary_channel = await self.get_owned_channel(context)
+        if not temporary_channel:
+            return
+        if size == 0:
+            size = None
+        elif size < 0:
+            await context.send("Cannot set negative channel size.")
+            return
+
+        success = await temporary_channel.edit(user_limit=size, forced=False)
+        if success:
+            await context.send(message % temporary_channel.channel.mention, size)
+        else:
+            await context.send(f"Please wait 60s to use that command again.")
+
+    @cog_ext.cog_slash(name="resize", guild_ids=server_ids,
                        description="Resize your voice channel.",
                        options=[
                            create_option(name="size",
@@ -393,19 +465,9 @@ class OwnedChannelCommands(commands.Cog, name="Owned Channel Commands"):
                                          required=True)
                        ])
     async def _resize(self, context: SlashContext, size: int):
-        temporary_channel = await self.get_owned_channel(context)
-        if not temporary_channel:
-            return
-        if size == 0:
-            size = None
-        elif size < 0:
-            await context.send("Cannot set negative channel size.")
-            return
+        await self.do_limit_command(context, size, "Successfully set %s size to `%s`")
 
-        await temporary_channel.edit(user_limit=size)
-        await context.send(f"Successfully set {temporary_channel.channel.mention} size to `{size}`")
-
-    @cog_ext.cog_slash(name="limit", guild_ids=[server_id],
+    @cog_ext.cog_slash(name="limit", guild_ids=server_ids,
                        description="Apply a user limit to your voice channel. Limit 0 removes the limit.",
                        options=[
                            create_option(name="size",
@@ -414,27 +476,20 @@ class OwnedChannelCommands(commands.Cog, name="Owned Channel Commands"):
                                          required=True)
                        ])
     async def _limit(self, context: SlashContext, size: int):
-        temporary_channel = await self.get_owned_channel(context)
-        if not temporary_channel:
-            return
-        if size == 0:
-            size = None
-        elif size < 0:
-            await context.send("Cannot set negative channel size.")
-            return
+        await self.do_limit_command(context, size, "Successfully limited %s to `%s`")
 
-        await temporary_channel.edit(user_limit=size)
-        await context.send(f"Successfully limited {temporary_channel.channel.mention} to `{size}`")
-
-    @cog_ext.cog_slash(name="unlimit", guild_ids=[server_id],
+    @cog_ext.cog_slash(name="unlimit", guild_ids=server_ids,
                        description="Unlimit your voice channel.")
     async def _unlimit(self, context):
         temporary_channel = await self.get_owned_channel(context)
         if temporary_channel:
-            await temporary_channel.edit(user_limit=None)
-            await context.send(f"Successfully unlimited {temporary_channel.channel.mention}")
+            success = await temporary_channel.edit(user_limit=None, forced=False)
+            if success:
+                await context.send(f"Successfully unlimited {temporary_channel.channel.mention}")
+            else:
+                await context.send(f"Please wait 60s to use that command again.")
 
-    @cog_ext.cog_slash(name="rename", guild_ids=[server_id],
+    @cog_ext.cog_slash(name="rename", guild_ids=server_ids,
                        description="Rename your voice channel.",
                        options=[
                            create_option(name="name",
@@ -445,11 +500,35 @@ class OwnedChannelCommands(commands.Cog, name="Owned Channel Commands"):
     async def _rename(self, context: SlashContext, name: str):
         temporary_channel = await self.get_owned_channel(context)
         if temporary_channel:
-            await temporary_channel.edit(name=name)
-            await context.send(f"Successfully renamed {temporary_channel.channel.mention}")
+            if re.match(r"#\d+", name.lower().removeprefix(temporary_channel.creator.create_name.lower()).strip()):
+                await context.send("Please don't use misleading channel names.")
+                return
+            success = await temporary_channel.edit(name=name, forced=False)
+            if success:
+                await context.send(f"Successfully renamed {temporary_channel.channel.mention}")
+            else:
+                await context.send(f"Please wait 60s to use that command again.")
+
+    @cog_ext.cog_slash(name="owner", guild_ids=server_ids,
+                       description="Transfer ownership of your voice channel",
+                       options=[
+                           create_option(name="user",
+                                         description="New owner of the channel",
+                                         option_type=6,
+                                         required=True)
+                       ])
+    async def _owner(self, context: SlashContext, user: discord.Member):
+        temporary_channel = await self.get_owned_channel(context)
+        if temporary_channel:
+            if user.voice and user.voice.channel.id == temporary_channel.channel.id:
+                await temporary_channel.edit(owner_user_id=user.id)
+                await context.send(f"Successfully transferred ownership of {temporary_channel.channel.mention} to {user.mention}")
+            else:
+                await context.send(f"{user.mention} is not in {temporary_channel.channel.mention}, ownership not transferred.")
 
 
 bot.add_cog(VoiceHandler(bot))
+bot.add_cog(HighLevel(bot))
 bot.add_cog(CreationCommands(bot))
 bot.add_cog(OwnedChannelCommands(bot))
 
