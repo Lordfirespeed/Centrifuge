@@ -185,7 +185,7 @@ class TemporaryChannel:
             await asyncio.sleep(time)
             self.edited_recently[property_name] = False
 
-        self.edited_recently[property_name] = asyncio.create_task(_job())
+        self.edited_recently[property_name] = bool(asyncio.create_task(_job()))
 
     def make_name(self):
         if self.name == self.creator.create_name:
@@ -490,7 +490,7 @@ class OwnedChannelCommands(commands.Cog, name="Owned Channel Commands"):
 
         success = await temporary_channel.edit(user_limit=size, forced=False)
         if success:
-            await context.send(message % temporary_channel.channel.mention, size)
+            await context.send(message % (temporary_channel.channel.mention, size or "unlimited"))
         else:
             await context.send(f"Please wait 60s to use that command again.")
 
