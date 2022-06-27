@@ -1,0 +1,5 @@
+*.*env
+*.cmd
+/venv/
+/bot/data/
+/misc/
