@@ -89,8 +89,6 @@ class SquadVoice(commands.Cog):
                 await temporary_channel.ready.wait()
                 channel_creator.register_temporary_channel(temporary_channel, dump=False)
 
-        print(self.channel_creators)
-
         self.dump_temporary_channels()
         self.dump_channel_creators()
 
