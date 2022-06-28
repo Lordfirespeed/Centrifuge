@@ -1,3 +1,5 @@
+from typing import Optional
+
 import discord
 import re
 from discord import app_commands, utils
@@ -14,7 +16,7 @@ class SquadVoice(commands.Cog):
         self.all_temporary_channels = {}
 
         self.voice_creator_commands: app_commands.Group = None
-        self.created_channel_commandss: app_commands.Group = None
+        self.created_channel_commands: app_commands.Group = None
 
     async def cog_load(self) -> None:
         self.create_command_groups()
@@ -168,21 +170,33 @@ class SquadVoice(commands.Cog):
         self.__cog_app_commands__.append(self.created_channel_commands)
 
     def register_voice_creator_commands_to_group(self):
-        @self.voice_creator_commands.command(name="create", description="Create an incremental channel creator.")
+        @self.voice_creator_commands.command(name="create")
         @app_commands.rename(category="creator_category",
                              create_name="created_name",
                              create_category="created_category")
-        @app_commands.describe(name="Name of channel creator",
-                               category="Category to place creator into",
-                               create_name="Name of temporary channels to create",
-                               create_category="Category to place temporary channels into",
-                               user_limit="User limit of temporary channels")
         async def _create_channel_creator(interaction: discord.Interaction,
                                           name: str,
-                                          category: discord.CategoryChannel = None,
-                                          create_name: str = None,
-                                          create_category: discord.CategoryChannel = None,
-                                          user_limit: int = None):
+                                          category: Optional[discord.CategoryChannel] = None,
+                                          create_name: Optional[str] = None,
+                                          create_category: Optional[discord.CategoryChannel] = None,
+                                          user_limit: Optional[int] = None):
+            """Create an incremental channel creator.
+
+            Parameters
+            ----------
+            interaction : Interaction
+                The interaction object.
+            name : str
+                Name of channel creator.
+            category : Optional[discord.CategoryChannel]
+                Category to place creator into.
+            create_name : Optional[str]
+                Name of created temporary channels.
+            create_category : Optional[discord.CategoryChannel]
+                Category of created temporary channels.
+            user_limit : Optional[int]
+                User limit of created temporary channels.
+            """
             new_channel_creator_channel = await interaction.guild.create_voice_channel(name=name, category=category)
             self.channel_creators[new_channel_creator_channel.id] = ChannelCreator(self,
                                                                                    new_channel_creator_channel,
@@ -193,10 +207,19 @@ class SquadVoice(commands.Cog):
             await interaction.response.send_message(
                 f"Created new incremental channel creator {new_channel_creator_channel.mention} successfully.")
 
-        @self.voice_creator_commands.command(name="delete", description="Delete an incremental channel creator.")
-        @app_commands.describe(channel="Incremental voice channel creator to delete.")
+        @self.voice_creator_commands.command(name="delete")
         async def _delete_channel_creator(interaction: discord.Interaction,
                                           channel: discord.VoiceChannel):
+            """Delete an incremental channel creator.
+
+            Parameters
+            ----------
+            interaction : Interaction
+                The interaction object.
+            channel : discord.VoiceChannel
+                Incremental voice channel creator to delete.
+            """
+
             if channel.id not in self.channel_creators.keys():
                 await interaction.response.send_message(
                     f"{channel.mention} is not an incremental voice channel creator.")
@@ -206,21 +229,31 @@ class SquadVoice(commands.Cog):
             await interaction.response.send_message(
                 f"Successfully deleted incremental voice channel creator with ID `{channel.id}`")
 
-        @self.voice_creator_commands.command(name="edit", description="Edit an incremental channel creator.")
+        @self.voice_creator_commands.command(name="edit")
         @app_commands.rename(create_name="created_name",
                              create_category="created_category")
-        @app_commands.describe(channel="Incremental voice channel creator to edit",
-                               create_name="Name of temporary channels to create",
-                               create_category="Category to place temporary channels into",
-                               user_limit="User limit of temporary channels")
         async def _edit_channel_creator(interaction: discord.Interaction,
                                         channel: discord.VoiceChannel,
-                                        create_name: str = None,
-                                        create_category: discord.CategoryChannel = None,
-                                        user_limit: int = None):
+                                        create_name: Optional[str] = None,
+                                        create_category: Optional[discord.CategoryChannel] = None,
+                                        user_limit: Optional[int] = None):
+            """Edit an incremental channel creator.
+
+            Parameters
+            ----------
+            interaction : Interaction
+                The interaction object.
+            channel : discord.VoiceChannel
+                Incremental voice channel creator to edit.
+            create_name : Optional[str]
+                Name of created temporary channels.
+            create_category : Optional[discord.CategoryChannel]
+                Category of created temporary channels.
+            user_limit : Optional[int]
+                User limit of created temporary channels.
+            """
             if channel.id not in self.channel_creators.keys():
-                await interaction.response.send_message(
-                    f"{channel.mention} is not an incremental voice channel creator.")
+                await interaction.response.send_message(f"{channel.mention} is not an incremental voice channel creator.")
                 return
 
             channel_creator = self.channel_creators[channel.id]
@@ -229,20 +262,43 @@ class SquadVoice(commands.Cog):
                 f"Successfully edited incremental channel creator {channel_creator.channel.mention}")
 
     def register_created_channel_commands_to_group(self):
-        @self.created_channel_commands.command(name="resize", description="Resize your voice channel.")
-        @app_commands.describe(size="Number of users allowed in the channel")
+        @self.created_channel_commands.command(name="resize")
         async def _resize(interaction: discord.Interaction,
                           size: int):
+            """Resize your voice channel.
+
+            Parameters
+            ----------
+            interaction : Interaction
+                The interaction object.
+            size : int
+                Number of users allowed in the channel.
+            """
             await self.do_limit_command(interaction, size, "Successfully set %s size to `%s`")
 
-        @self.created_channel_commands.command(name="limit", description="Apply a user limit to your voice channel. 0 removes the limit.")
-        @app_commands.describe(limit="Number of users allowed in the channel")
+        @self.created_channel_commands.command(name="limit")
         async def _limit(interaction: discord.Interaction,
                          limit: int):
+            """Apply a user limit to your voice channel. 0 removes the limit.
+
+            Parameters
+            ----------
+            interaction : Interaction
+                The interaction object.
+            limit : int
+                Number of users allowed in the channel.
+            """
             await self.do_limit_command(interaction, limit, "Successfully limited %s to `%s`")
 
-        @self.created_channel_commands.command(name="unlimit", description="Unlimit your voice channel.")
+        @self.created_channel_commands.command(name="unlimit")
         async def _unlimit(interaction: discord.Interaction):
+            """Unlimit your voice channel."
+
+            Parameters
+            ----------
+            interaction : Interaction
+                The interaction object.
+            """
             temporary_channel = await self.get_temporary_channel(interaction)
             if not temporary_channel:
                 await interaction.response.send_message(f"You are not in a temporary voice channel.", ephemeral=True)
@@ -255,10 +311,18 @@ class SquadVoice(commands.Cog):
 
             await interaction.response.send_message(f"Successfully unlimited {temporary_channel.channel.mention}")
 
-        @self.created_channel_commands.command(name="rename", description="Rename your voice channel.")
-        @app_commands.describe(name="New name of the channel")
+        @self.created_channel_commands.command(name="rename")
         async def _rename(self, interaction: discord.Interaction,
                           name: str):
+            """Rename your voice channel.
+
+            Parameters
+            ----------
+            interaction : Interaction
+                The interaction object.
+            name : str
+                New name of the channel.
+            """
             temporary_channel = await self.get_temporary_channel(interaction)
             if not temporary_channel:
                 return
