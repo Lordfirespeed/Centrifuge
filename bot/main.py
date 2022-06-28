@@ -1,19 +1,18 @@
-import os
+from typing import Awaitable, Callable
+from os import getenv
 import discord
-from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
-load_dotenv()
-
-token = os.getenv("APPLICATION_TOKEN")
-server_id = int(os.getenv("DISCORD_SERVER_ID"))
-guild = discord.Object(id=server_id)
 
 
-class SquadsBot(commands.Bot):
-    def __init__(self, *args, **kwargs):
-        self.guild = guild
+class GuildBot(commands.Bot):
+    initial_extensions = ["cogs.squad_voice",
+                          "cogs.misc.ping",
+                          "cogs.misc.restart"]
+
+    def __init__(self, guild, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.guild = guild
 
     @staticmethod
     async def validate_arguments(interaction: discord.Interaction, arguments: dict[str, list[type, type]]):
@@ -30,49 +29,32 @@ class SquadsBot(commands.Bot):
             return True
 
     async def setup_hook(self) -> None:
-        await bot.add_cog(HighLevel(bot), guilds=[bot.guild])
-        await bot.add_cog(LowLevel(bot), guilds=[bot.guild])
-        await self.load_extension(f"cogs.squad_voice")
-        await bot.tree.sync(guild=guild)
+        for extension_name in self.initial_extensions:
+            await self.load_extension(extension_name)
+
+        await self.tree.sync(guild=self.guild)
 
 
-class LowLevel(commands.Cog, name="Low Level"):
-    def __init__(self, bot):
-        self.bot = bot
-
-    @app_commands.command(name="ping", description="Checks bot latency")
-    async def ping(self, interaction: discord.Interaction):
-        await interaction.response.send_message(content=f"Pong! (`{round(self.bot.latency * 1000)}ms`)")
+def basic_extension_setup(cog: commands.Cog.__class__) -> Callable[[GuildBot], Awaitable[None]]:
+    async def setup(bot: GuildBot) -> None:
+        await bot.add_cog(cog(bot), guilds=[bot.guild])
+    return setup
 
 
-class HighLevel(commands.Cog, name="High Level"):
-    def __init__(self, bot):
-        self.bot = bot
-        self.restarting = False
+def main() -> None:
+    load_dotenv()
 
-    @app_commands.command(name="restart", description="Restart the bot. Locked to bot developer")
-    async def _restart(self, interaction: discord.Interaction):
-        if not await self.bot.is_owner(interaction.user):
-            await interaction.response.send_message(f"You don't have permission to use this.")
-            return
-        if self.restarting:
-            await interaction.response.send_message(f"Already restarting.")
-            return
+    token = getenv("APPLICATION_TOKEN")
+    server_id = int(getenv("DISCORD_SERVER_ID"))
+    guild = discord.Object(id=server_id)
 
-        self.restarting = True
-        path_to_start = os.path.join(os.path.dirname(__file__), "..", "start_bot.sh")
-        if os.path.exists(path_to_start) and os.path.isfile(path_to_start):
-            await interaction.response.send_message(f"Restarting...")
-            await self.bot.close()
-            os.chdir(os.path.join(os.path.dirname(__file__), ".."))
-            os.execv(path_to_start, [" "])
-        else:
-            await interaction.response.send_message(f"Failed to find bot start script.")
+    intents = discord.Intents.none()
+    intents.guilds = True
+    intents.voice_states = True
+    bot = GuildBot(guild, command_prefix=">", intents=intents, case_insensitive=True)
+
+    bot.run(token)
 
 
-intents = discord.Intents.none()
-intents.guilds = True
-intents.voice_states = True
-bot = SquadsBot(command_prefix=">", intents=intents, case_insensitive=True)
-
-bot.run(token)
+if __name__ == "__main__":
+    main()

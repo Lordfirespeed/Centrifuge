@@ -7,10 +7,11 @@ from discord.ext import commands
 from collections import defaultdict
 import json
 import asyncio
+from bot.main import GuildBot, basic_extension_setup
 
 
 class SquadVoice(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: GuildBot):
         self.bot = bot
         self.channel_creators = {}
         self.all_temporary_channels = {}
@@ -182,7 +183,7 @@ class SquadVoice(commands.Cog):
 
             Parameters
             ----------
-            interaction : Interaction
+            interaction : discord.Interaction
                 The interaction object.
             name : str
                 Name of channel creator.
@@ -212,7 +213,7 @@ class SquadVoice(commands.Cog):
 
             Parameters
             ----------
-            interaction : Interaction
+            interaction : discord.Interaction
                 The interaction object.
             channel : discord.VoiceChannel
                 Incremental voice channel creator to delete.
@@ -239,7 +240,7 @@ class SquadVoice(commands.Cog):
 
             Parameters
             ----------
-            interaction : Interaction
+            interaction : discord.Interaction
                 The interaction object.
             channel : discord.VoiceChannel
                 Incremental voice channel creator to edit.
@@ -267,7 +268,7 @@ class SquadVoice(commands.Cog):
 
             Parameters
             ----------
-            interaction : Interaction
+            interaction : discord.Interaction
                 The interaction object.
             size : int
                 Number of users allowed in the channel.
@@ -281,7 +282,7 @@ class SquadVoice(commands.Cog):
 
             Parameters
             ----------
-            interaction : Interaction
+            interaction : discord.Interaction
                 The interaction object.
             limit : int
                 Number of users allowed in the channel.
@@ -294,7 +295,7 @@ class SquadVoice(commands.Cog):
 
             Parameters
             ----------
-            interaction : Interaction
+            interaction : discord.Interaction
                 The interaction object.
             """
             temporary_channel = await self.get_temporary_channel(interaction)
@@ -316,7 +317,7 @@ class SquadVoice(commands.Cog):
 
             Parameters
             ----------
-            interaction : Interaction
+            interaction : discord.Interaction
                 The interaction object.
             name : str
                 New name of the channel.
@@ -511,5 +512,4 @@ class TemporaryChannel:
         return True
 
 
-async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(SquadVoice(bot), guilds=[bot.guild])
+setup = basic_extension_setup(SquadVoice)
