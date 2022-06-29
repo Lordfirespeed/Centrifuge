@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 class GuildBot(commands.Bot):
     initial_extensions = ["cogs.squad_voice",
                           "cogs.misc.ping",
-                          "cogs.misc.restart"]
+                          "cogs.misc.restart",
+                          "cogs.misc.badger"]
 
     def __init__(self, guild, *args, **kwargs):
         super().__init__(*args, **kwargs)

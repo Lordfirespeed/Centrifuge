@@ -158,11 +158,11 @@ class SquadVoice(commands.Cog):
 
     def create_command_groups(self):
         self.voice_creator_commands = app_commands.Group(name="voicecreator",
-                                                         description="Incremental Channel Creator Commands",
+                                                         description="Incremental Channel Creator Commands.",
                                                          guild_only=True,
                                                          default_permissions=discord.Permissions(manage_channels=True))
         self.created_channel_commands = app_commands.Group(name="voice",
-                                                           description="Created Channel Commands",
+                                                           description="Created Channel Commands.",
                                                            guild_only=True)
 
         self.__cog_app_commands__.append(self.voice_creator_commands)
