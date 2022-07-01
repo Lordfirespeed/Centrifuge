@@ -9,7 +9,9 @@ class GuildBot(commands.Bot):
     initial_extensions = ["cogs.squad_voice",
                           "cogs.misc.ping",
                           "cogs.misc.restart",
-                          "cogs.misc.badger"]
+                          "cogs.misc.badger",
+                          "cogs.xp.group",
+                          "cogs.xp.main"]
 
     def __init__(self, guild, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -51,6 +53,8 @@ def main() -> None:
 
     intents = discord.Intents.none()
     intents.guilds = True
+    intents.guild_messages = True
+    intents.guild_reactions = True
     intents.voice_states = True
     bot = GuildBot(guild, command_prefix=">", intents=intents, case_insensitive=True)
 
