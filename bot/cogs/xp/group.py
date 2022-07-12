@@ -1,7 +1,7 @@
 from typing import Optional
 from discord import app_commands
 from discord.ext import commands
-from bot.main import GuildBot, basic_extension_setup
+from bot.main import GuildBot, extension_setup
 
 
 class XPCommandGroup(commands.Cog):
@@ -21,4 +21,4 @@ class XPCommandGroup(commands.Cog):
         self.__cog_app_commands__.append(self.xp_commands)
 
 
-setup = basic_extension_setup(XPCommandGroup)
+setup = extension_setup(XPCommandGroup)

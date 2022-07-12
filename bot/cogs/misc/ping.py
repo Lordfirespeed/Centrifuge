@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from bot.main import basic_extension_setup
+from bot.main import extension_setup
 
 
 class PingCommand(commands.Cog, name="Ping Command"):
@@ -20,4 +20,4 @@ class PingCommand(commands.Cog, name="Ping Command"):
         await interaction.response.send_message(content=f"Pong! (`{round(self.bot.latency * 1000)}ms`)")
 
 
-setup = basic_extension_setup(PingCommand)
+setup = extension_setup(PingCommand)

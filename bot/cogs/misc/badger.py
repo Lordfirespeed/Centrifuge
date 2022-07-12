@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from bot.main import basic_extension_setup
+from bot.main import extension_setup
 
 
 class BadgerCommand(commands.Cog, name="Badger Command"):
@@ -20,4 +20,4 @@ class BadgerCommand(commands.Cog, name="Badger Command"):
         await interaction.response.send_message(content=f"Badger is cool.")
 
 
-setup = basic_extension_setup(BadgerCommand)
+setup = extension_setup(BadgerCommand)

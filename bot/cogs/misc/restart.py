@@ -2,7 +2,7 @@ import os
 import discord
 from discord import app_commands
 from discord.ext import commands
-from bot.main import basic_extension_setup
+from bot.main import extension_setup
 
 
 class RestartCommand(commands.Cog, name="Restart Command"):
@@ -38,4 +38,4 @@ class RestartCommand(commands.Cog, name="Restart Command"):
         os.execv(path_to_start, [" "])
 
 
-setup = basic_extension_setup(RestartCommand)
+setup = extension_setup(RestartCommand)

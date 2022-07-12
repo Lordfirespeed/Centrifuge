@@ -1,15 +1,13 @@
 import discord
 from discord.ext import commands
-from bot.main import basic_extension_setup
+from bot.main import extension_setup
 from bot.cogs.xp.main import XPCog
+import logging
 
 
 class XPListeners(XPCog):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-    async def cog_load(self) -> None:
-        super().cog_load()
 
     def award_reply_xp(self, message: discord.Message) -> None:
         try:
@@ -38,13 +36,15 @@ class XPListeners(XPCog):
             assert message.author.bot is False
             assert type(message.author) is discord.Member
             assert message.author.guild.id == self.bot.guild.id
-            assert message.type == discord.Message.default
+            assert message.type == discord.MessageType.default
         except AssertionError:
             return
+
+        logging.debug(f"Saw message from {message.author.name}")
 
         self.handler.add_experience(message.author.id, self.handler.reward_xp_message)
 
         self.award_reply_xp(message)
 
 
-setup = basic_extension_setup(XPListeners)
+setup = extension_setup(XPListeners)

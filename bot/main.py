@@ -1,8 +1,15 @@
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Optional
 from os import getenv
+import logging
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+
+
+class DependentCog(commands.Cog.__class__):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dependencies = Optional[tuple[str]]
 
 
 class GuildBot(commands.Bot):
@@ -11,36 +18,56 @@ class GuildBot(commands.Bot):
                           "cogs.misc.restart",
                           "cogs.misc.badger",
                           "cogs.xp.group",
-                          "cogs.xp.main"]
+                          "cogs.xp.main",
+                          "cogs.xp.listeners",
+                          "cogs.xp.commands.show",
+                          "cogs.xp.commands.curve",
+                          "cogs.xp.commands.rolescalar",
+                          "cogs.xp.commands.autorole",
+                          "cogs.xp.commands.set"]
 
     def __init__(self, guild, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.guild = guild
+        self.guild: discord.Guild = guild
 
-    @staticmethod
-    async def validate_arguments(interaction: discord.Interaction, arguments: dict[str, list[type, type]]):
-        valid_bools = {argument_name: types[0] == types[1] for argument_name, types in arguments.items() if
-                       not isinstance(None, types[0])}
-        if not all(valid_bools.values()):
-            invalid_arguments = {argument_name: arguments[argument_name][1] for argument_name, valid in
-                                 valid_bools.items() if not valid}
-            newline = "\n"
-            await interaction.response.send_message(
-                f"Incorrect argument type(s).\n{newline.join([f'`{argument_name}` should be `{correct_type.__name__}`' for argument_name, correct_type in invalid_arguments.items()])}")
-            return False
-        else:
-            return True
+    async def lookup_member(self, member_id: int):
+        member = self.guild.get_member(member_id)
+        if member:
+            return member
+
+        member = await self.guild.fetch_member(member_id)
+        return member
 
     async def setup_hook(self) -> None:
+        self.guild = await self.fetch_guild(self.guild.id)
+
         for extension_name in self.initial_extensions:
             await self.load_extension(extension_name)
 
         await self.tree.sync(guild=self.guild)
 
+    async def load_extension(self, *args, **kwargs) -> None:
+        await super().load_extension(*args, **kwargs)
 
-def basic_extension_setup(cog: commands.Cog.__class__) -> Callable[[GuildBot], Awaitable[None]]:
+
+async def load_dependencies(bot: GuildBot, cog: DependentCog) -> None:
+    if not isinstance(cog, DependentCog):
+        return
+    if cog.dependencies is None:
+        return
+    if len(cog.dependencies) == 0:
+        return
+
+    for dependency in cog.dependencies:
+        await bot.load_extension(dependency)
+
+
+def extension_setup(cog: commands.Cog.__class__) -> Callable[[GuildBot], Awaitable[None]]:
     async def setup(bot: GuildBot) -> None:
-        await bot.add_cog(cog(bot), guilds=[bot.guild])
+        new_cog = cog(bot)
+        await bot.add_cog(new_cog, guilds=[bot.guild])
+        await load_dependencies(bot, cog)
+
     return setup
 
 
@@ -56,10 +83,12 @@ def main() -> None:
     intents.guild_messages = True
     intents.guild_reactions = True
     intents.voice_states = True
+    intents.members = True
     bot = GuildBot(guild, command_prefix=">", intents=intents, case_insensitive=True)
 
     bot.run(token)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     main()

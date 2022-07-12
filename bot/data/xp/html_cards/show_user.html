@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="./../html_cards/style.css">
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <div class="card">
+            <div class="card_content">
+                <div class="card_left_column center_children">
+                    <div class="circle_img">
+                        <img src="{profile_url}">
+                    </div>
+                </div>
+                <div class="card_right_column flex_vertical">
+                    <div id="username" class="text_row center_children" style="flex:1.5;color:rgb({user_colour});">
+                        <span>{username}#{discriminator}</span>
+                    </div>
+                    <div id="level" class="text_row center_children">
+                        <span>LEVEL {level}</span>
+                    </div>
+                    <div id="rank" class="text_row center_children">
+                        <span>RANK #{rank}</span>
+                    </div>
+                    <div id="experience" class="text_row center_children">
+                        <span>{xp_quantity} XP</span>
+                    </div>
+                    <div id="levelprogress" class="center_children">
+                        <div id="previous_level_requirement" class="text_label">
+                            {previous_level_requirement}
+                        </div>
+                        <div id="progressbar" style="flex:1">
+                            <div class="progressitem progressnested">
+                                <div class="progress" style="background-color:rgb({user_colour});width:{level_progress_percentage}%"></div>
+                            </div>
+                        </div>
+                        <div id="next_level_requirement" class="text_label">
+                            {next_level_requirement}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+

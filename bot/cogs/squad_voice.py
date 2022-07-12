@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 
 import discord
@@ -7,21 +8,32 @@ from discord.ext import commands
 from collections import defaultdict
 import json
 import asyncio
-from bot.main import GuildBot, basic_extension_setup
+from bot.main import GuildBot, extension_setup
+from pathlib import Path
 
 
 class SquadVoice(commands.Cog):
+    data_directory = "data/squad_voice/"
+    channel_creators_filename = "channel-creators.json"
+    temporary_channels_filename = "temporary-channels.json"
+
     def __init__(self, bot: GuildBot):
         self.bot = bot
         self.channel_creators = {}
         self.all_temporary_channels = {}
 
-        self.voice_creator_commands: app_commands.Group = None
-        self.created_channel_commands: app_commands.Group = None
+        self.channel_creators_path = Path(self.data_directory, self.channel_creators_filename)
+        self.temporary_channels_path = Path(self.data_directory, self.temporary_channels_filename)
+
+        self.voice_creator_commands: Optional[app_commands.Group] = None
+        self.created_channel_commands: Optional[app_commands.Group] = None
 
     async def cog_load(self) -> None:
         self.create_command_groups()
         self.register_voice_creator_commands_to_group()
+
+        self.channel_creators_path.touch(exist_ok=True)
+        self.temporary_channels_path.touch(exist_ok=True)
 
         await self.load_from_json()
 
@@ -37,7 +49,7 @@ class SquadVoice(commands.Cog):
                  "create_category_id": channel_creator.create_category.id if channel_creator.create_category else None,
                  "create_user_limit": channel_creator.create_user_limit}
                 for channel_creator in self.channel_creators.values()]
-        with open("data/squad_voice/channel-creators.json", "w") as writefile:
+        with open(self.channel_creators_path, "w") as writefile:
             json.dump(data, writefile, indent=2)
 
     def dump_temporary_channels(self):
@@ -45,21 +57,24 @@ class SquadVoice(commands.Cog):
                  "index": temporary_channel.index,
                  "creator": temporary_channel.creator.channel.id}
                 for temporary_channel in self.all_temporary_channels.values()]
-        with open("data/squad_voice/temporary-channels.json", "w") as writefile:
+        with open(self.temporary_channels_path, "w") as writefile:
             json.dump(data, writefile, indent=2)
 
-    async def load_from_json(self):
+    async def load_channel_creators_from_json(self):
         with open("data/squad_voice/channel-creators.json", "r") as readfile:
-            channel_creators_data = json.load(readfile)
+            try:
+                channel_creators_data = json.load(readfile)
+            except json.decoder.JSONDecodeError:
+                return
 
         self.channel_creators = {}
-        self.all_temporary_channels = {}
 
         for channel_creator_data in channel_creators_data:
             try:
                 channel_creator_data["channel"] = await self.bot.fetch_channel(channel_creator_data["channel_id"])
             except discord.NotFound:
                 continue
+
             del channel_creator_data["channel_id"]
             if channel_creator_data["create_category_id"]:
                 try:
@@ -72,13 +87,21 @@ class SquadVoice(commands.Cog):
             channel_creator = ChannelCreator(self, **channel_creator_data)
             self.channel_creators[channel_creator.channel.id] = channel_creator
 
+    async def load_temporary_channels_from_json(self):
         with open("data/squad_voice/temporary-channels.json", "r") as readfile:
-            temporary_channels_data = json.load(readfile)
+            try:
+                temporary_channels_data = json.load(readfile)
+            except json.decoder.JSONDecodeError:
+                return
+
+        self.all_temporary_channels = {}
+
         for temporary_channel_data in temporary_channels_data:
             try:
                 channel = await self.bot.fetch_channel(temporary_channel_data["channel_id"])
             except discord.NotFound:
                 continue
+
             if len(channel.voice_states) == 0:
                 await channel.delete()
             elif channel and temporary_channel_data["creator"] in self.channel_creators.keys():
@@ -90,10 +113,14 @@ class SquadVoice(commands.Cog):
                 await temporary_channel.ready.wait()
                 channel_creator.register_temporary_channel(temporary_channel, dump=False)
 
+    async def load_from_json(self):
+        await self.load_channel_creators_from_json()
+        await self.load_temporary_channels_from_json()
+
         self.dump_temporary_channels()
         self.dump_channel_creators()
 
-    async def get_temporary_channel(self, interaction: discord.Interaction):
+    async def get_temporary_channel(self, interaction: discord.Interaction) -> Optional[TemporaryChannel]:
         voice_state = interaction.user.voice
         if not voice_state:
             await interaction.response.send_message("You are not in a voice channel.", ephemeral=True)
@@ -410,7 +437,7 @@ class ChannelCreator:
 
 class TemporaryChannel:
     def __init__(self, cog: SquadVoice, creator: ChannelCreator, index: int,
-                 category: discord.CategoryChannel, name: str, user_limit: int = None,
+                 category: discord.CategoryChannel, name: str, user_limit: Optional[int] = None,
                  channel: discord.VoiceChannel = None):
         self.cog = cog
         self.creator = creator
@@ -472,7 +499,7 @@ class TemporaryChannel:
             self.cog.dump_temporary_channels()
 
     async def edit(self, index: int = None, category: discord.CategoryChannel = False, name: str = None,
-                   user_limit: int = False, forced=True):
+                   user_limit: Optional[int] or bool = False, forced=True):
         changed = False
         on_timer = False
         if index:
@@ -512,4 +539,4 @@ class TemporaryChannel:
         return True
 
 
-setup = basic_extension_setup(SquadVoice)
+setup = extension_setup(SquadVoice)

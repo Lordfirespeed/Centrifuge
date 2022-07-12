@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from bot.main import GuildBot, basic_extension_setup
+from bot.main import GuildBot, extension_setup
 
 
 class VoiceXP(commands.Cog):
@@ -8,4 +8,4 @@ class VoiceXP(commands.Cog):
         self.bot = bot
 
 
-setup = basic_extension_setup(VoiceXP)
+setup = extension_setup(VoiceXP)
