@@ -24,7 +24,9 @@ class GuildBot(commands.Bot):
                           "cogs.xp.commands.curve",
                           "cogs.xp.commands.rolescalar",
                           "cogs.xp.commands.autorole",
-                          "cogs.xp.commands.set"]
+                          "cogs.xp.commands.set",
+                          "cogs.xp.commands.announce",
+                          "cogs.xp.commands.reward"]
 
     def __init__(self, guild, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,6 +39,14 @@ class GuildBot(commands.Bot):
 
         member = await self.guild.fetch_member(member_id)
         return member
+
+    async def lookup_channel(self, channel_id: int):
+        channel = self.guild.get_channel(channel_id)
+        if channel:
+            return channel
+
+        channel = await self.guild.fetch_channel(channel_id)
+        return channel
 
     async def setup_hook(self) -> None:
         self.guild = await self.fetch_guild(self.guild.id)
