@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, Awaitable
 from dataclasses import dataclass
 from contextlib import closing as contextlib_closing
 from collections import defaultdict
@@ -24,29 +24,57 @@ class SetExperienceType(Enum):
     xp = 2
 
 
-@dataclass
-class ExperienceMember:
-    handler: XPHandling
-    discord_member: DiscordMember
-    level: int
-    xp_quantity: float
-    rank: int
+class ExperienceMember(discord.Member):
+
+    __slots__ = (
+        "xp_handler",
+        "level",
+        "xp_quantity",
+        "rank"
+    )
+
+    def __init__(self, handler: XPHandling, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.xp_handler = handler
+        self.level: int
+        self.xp_quantity: float
+        self.rank: int
+
+    @classmethod
+    def _copy(cls, member: ExperienceMember) -> ExperienceMember:
+        self = super()._copy(member)
+        self.xp_handler = member.xp_handler
+        self.level = member.level
+        self.xp_quantity = member.xp_quantity
+        self.rank = member.rank
+
+        return self
+
+    @classmethod
+    def cast_from_member(cls, member: discord.Member, handler: XPHandling) -> ExperienceMember:
+        casted_obj = super()._copy(member)
+        casted_obj.fill_experience_slots(handler)
+
+        return casted_obj
+
+    def fill_experience_slots(self, handler: XPHandling):
+        self.xp_handler = handler
 
     def get_experience_above_level(self) -> float:
         """Query how much XP the user has above their current level."""
-        return self.handler.level_curve.get_experience_above_level(self.xp_quantity, self.level)
+        return self.xp_handler.level_curve.get_experience_above_level(self.xp_quantity, self.level)
 
     def get_current_level_requirement(self) -> float:
         """Query how much total XP the user needed to level up to their current level."""
-        return self.handler.level_curve.get_level_experience_requirement(self.level)
+        return self.xp_handler.level_curve.get_level_experience_requirement(self.level)
 
     def get_next_level_requirement(self) -> float:
         """Query how much total XP the user will need to level up to their next level."""
-        return self.handler.level_curve.get_level_experience_requirement(self.level + 1)
+        return self.xp_handler.level_curve.get_level_experience_requirement(self.level + 1)
 
     def get_level_progress(self) -> float:
         """Query the user's progress from their current to their next level."""
-        return self.handler.level_curve.get_level_progress_from_experience(self.xp_quantity)
+        return self.xp_handler.level_curve.get_level_progress_from_experience(self.xp_quantity)
 
 
 class XPHandling(commands.Cog):
@@ -214,6 +242,7 @@ class XPHandling(commands.Cog):
         self.apply_defaults()
         self.level_curve = self.XPCurve(self.level_curve_scalar, self.level_curve_power)
 
+        self.level_up_subscribers = []
         self._xp_additions = defaultdict(lambda: 0)
 
     def cog_load(self) -> None:
@@ -271,6 +300,15 @@ class XPHandling(commands.Cog):
 
     def apply_defaults_if_none(self):
         self.apply_defaults(lambda attr_name: self.__getattribute__(attr_name) is None)
+
+    def set_xp_reward_for_action(self, action_name: str, reward: float):
+        attribute_name = "reward_xp_" + action_name
+        self.__setattr__(attribute_name, reward)
+        self.save_all_guild_data()
+
+    def set_xp_gain_cap(self, cap: float):
+        self.xp_gain_cap = cap
+        self.save_all_guild_data()
 
     def basic_database_query(self, query: str, fields: Optional[tuple[Any, ...]] = tuple(), quantity: Optional[int] = 1) -> [sqlite3.Row] or sqlite3.Row or None:
         """Basic experience database query.
@@ -594,11 +632,13 @@ class XPHandling(commands.Cog):
 
     def convert_to_experience_member(self, member: DiscordMember):
         experience_info = self.get_member_experience_info(member.id)
-        return ExperienceMember(self,
-                                member,
-                                experience_info["experience_level"],
-                                experience_info["experience"],
-                                experience_info["rank"])
+
+        experience_member = ExperienceMember.cast_from_member(member, self)
+        experience_member.level = experience_info["experience_level"]
+        experience_member.xp_quantity = experience_info["experience"]
+        experience_member.rank = experience_info["rank"]
+
+        return experience_member
 
     @staticmethod
     def format_xp_quantity(xp_quantity):
@@ -607,8 +647,13 @@ class XPHandling(commands.Cog):
     def create_level_up_task(self, user_id: int, new_level: int):
         self.bot.loop.create_task(self.on_level_up(user_id, new_level))
 
+    def add_level_up_subscriber(self, subscriber: Callable[[ExperienceMember, int], Awaitable[None]]):
+        self.level_up_subscribers.append(subscriber)
+
     async def on_level_up(self, user_id: int, new_level: int):
-        pass
+        member = await self.get_experience_member(user_id)
+        for subscriber in self.level_up_subscribers:
+            await subscriber(member, new_level)
 
     async def do_experience_additions_for_user_id(self, user_id: int):
         to_add = self._xp_additions.pop(user_id)
@@ -627,7 +672,7 @@ class XPHandling(commands.Cog):
 
 
 class XPCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: GuildBot):
         self.bot = bot
         self.handler: Optional[XPHandling] = None
         self.command_group_cog: Optional[XPCommandGroupCog] = None
