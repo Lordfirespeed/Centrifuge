@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from os import getcwd
 from html2image import Html2Image
 from contextlib import closing as contextlib_closing
@@ -40,7 +41,7 @@ class ExtraCardFields:
 
     @staticmethod
     def user_colour(card: UserDisplayCard):
-        colour = card.member.discord_member.colour
+        colour = card.member.colour
         if colour.value == 0:
             return "255,255,255"
         return str(colour.to_rgb())[1:-1]
@@ -66,7 +67,7 @@ class UserDisplayCard:
         self.member = member
         self.card_type = card_type
         self._template_filepath = Path(self.card_directory, self.card_type.value)
-        unique_card_name = f"{self.card_type.name}{self.member.discord_member.id}"
+        unique_card_name = f"{self.card_type.name}{self.member.id}"
         self._temporary_html_filepath = Path(self.temp_directory, f"{unique_card_name}.html")
         self._temporary_png_filepath = Path(self.temp_directory, f"{unique_card_name}.png")
 
@@ -78,9 +79,9 @@ class UserDisplayCard:
 
     def _format_card_template(self, template_html_string: str) -> str:
         data = {
-            "username": self.member.discord_member.display_name,
-            "discriminator": self.member.discord_member.discriminator,
-            "profile_url": self.member.discord_member.display_avatar,
+            "username": self.member.display_name,
+            "discriminator": self.member.discriminator,
+            "profile_url": self.member.display_avatar,
             "level": self.member.level,
             "rank": self.member.rank,
             "xp_quantity": XPHandling.format_xp_quantity(self.member.xp_quantity),
