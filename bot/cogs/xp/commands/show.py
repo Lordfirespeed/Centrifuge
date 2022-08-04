@@ -3,14 +3,15 @@ from discord import app_commands
 from bot.main import extension_setup
 from bot.cogs.xp.main import XPCommandCog
 from bot.cogs.xp.card_generator import UserDisplayCard, UserDisplayCardType
+from bot.exceptions import standard_error_handling
 
 
 class ShowCommand(XPCommandCog):
     def register_commands(self):
         @self.command_group_cog.xp_commands.command(name="show")
-        @app_commands.default_permissions(manage_guild=True)
-        async def curve(interaction: discord.Interaction,
-                        member: discord.Member):
+        @standard_error_handling
+        async def show(interaction: discord.Interaction,
+                       member: discord.Member):
             """Show XP and level of a member.
 
             Parameters
