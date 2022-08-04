@@ -16,7 +16,7 @@ class SetExperienceCommand(XPCommandCog):
         async def set_experience(interaction: discord.Interaction,
                                  member: discord.Member,
                                  set_type: app_commands.Choice[int],
-                                 coefficient: float):
+                                 coefficient: app_commands.Range[float, 0, None]):
             """Set a member's experience quantity or level to a coefficient.
 
             Parameters
@@ -27,8 +27,8 @@ class SetExperienceCommand(XPCommandCog):
                 The user whose XP will be set.
             set_type : app_commands.Choice[int]
                 Whether to set the user's total XP quantity or XP level.
-            coefficient : float
-                The coefficient that the user's XP will be set to.
+            coefficient : app_commands.Range[float, 0, None]
+                The positive coefficient that the user's XP will be set to.
             """
             set_type = SetExperienceType(set_type.value)
             self.handler.set_member_experience(member, coefficient, set_type)
