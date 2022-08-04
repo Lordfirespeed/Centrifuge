@@ -4,6 +4,7 @@ import logging
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from bot.theme import EmbedTheme
 
 
 class DependentCog(commands.Cog.__class__):
@@ -26,13 +27,18 @@ class GuildBot(commands.Bot):
                           "cogs.xp.commands.autorole",
                           "cogs.xp.commands.set",
                           "cogs.xp.commands.announce",
-                          "cogs.xp.commands.reward"]
+                          "cogs.xp.commands.reward",
+                          "cogs.xp.commands.leaderboard"]
 
     def __init__(self, guild, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.guild: discord.Guild = guild
+        self.embed_theme = EmbedTheme("Main", discord.Colour.from_rgb(0, 145, 255))
 
     async def lookup_member(self, member_id: int):
+        if type(member_id) is not int:
+            raise TypeError
+
         member = self.guild.get_member(member_id)
         if member:
             return member
@@ -41,6 +47,9 @@ class GuildBot(commands.Bot):
         return member
 
     async def lookup_channel(self, channel_id: int):
+        if type(channel_id) is not int:
+            raise TypeError
+
         channel = self.guild.get_channel(channel_id)
         if channel:
             return channel
