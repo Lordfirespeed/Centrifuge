@@ -15,8 +15,11 @@ class AnnounceLevelUps(XPCommandCog):
 
     async def cog_load(self) -> None:
         await super().cog_load()
-        self.level_up_channel = await self.bot.lookup_channel(self.handler.announce_level_up_channel_id)
-        self.handler.add_level_up_subscriber(self.level_up_announcement)
+        try:
+            self.level_up_channel = await self.bot.lookup_channel(self.handler.announce_level_up_channel_id)
+        except TypeError:
+            self.level_up_channel = None
+        self.handler.level_up_event.subscribe(self.level_up_announcement)
 
     def create_groups(self) -> None:
         self.announce_command_group = app_commands.Group(name="announce",
