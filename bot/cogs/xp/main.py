@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Any, Optional, Callable, Awaitable
-from dataclasses import dataclass
 from contextlib import closing as contextlib_closing
 from collections import defaultdict
 import discord
@@ -9,6 +8,7 @@ from discord import Member as DiscordMember
 from discord.ext import commands, tasks
 from bot.main import GuildBot, extension_setup
 import bot.exceptions as exceptions
+from bot.subscribable import SubscribableEvent
 from bot.cogs.xp.group import XPCommandGroup as XPCommandGroupCog
 import sqlite3
 from enum import Enum
@@ -90,7 +90,7 @@ class XPHandling(commands.Cog):
                 "xp_gain_cap": 150}
 
     class SQLMethods:
-        rank_field = "ROW_NUMBER() OVER(ORDER BY experience) as rank"
+        rank_field = "ROW_NUMBER() OVER(ORDER BY experience DESC) as rank"
 
         def __init__(self, guild_id: int):
             self.experience_schema: str = f"Guild{guild_id}"
@@ -134,11 +134,17 @@ class XPHandling(commands.Cog):
         def create_scalars_schema(self):
             return f"CREATE TABLE IF NOT EXISTS {self.role_scalars_schema} (roleid INTEGER PRIMARY KEY, scalar REAL, priority INTEGER);"
 
-        def select_by_userid(self, field_names):
-            return self.generic_select(self.experience_schema, field_names, "userid=?")
+        def experience_schema_with_rank_subquery(self):
+            return f"(SELECT userid, experience, experience_level, {self.rank_field} from {self.experience_schema})"
 
-        def select_many_by_userid(self, field_names, number_of_user_ids):
-            return self.generic_select(self.experience_schema, field_names, f"userid IN ({', '.join(['?'] * number_of_user_ids)})")
+        def select_member_by_userid(self, field_names):
+            return self.generic_select(self.experience_schema_with_rank_subquery(), field_names, "userid=?")
+
+        def select_many_members_by_userid(self, field_names, number_of_user_ids):
+            return self.generic_select(self.experience_schema_with_rank_subquery(), field_names, f"userid IN ({', '.join(['?'] * number_of_user_ids)})")
+
+        def select_many_members_by_condition(self, field_names, condition):
+            return self.generic_select(self.experience_schema_with_rank_subquery(), field_names, condition)
 
         def update_by_userid(self, field_names: [str]) -> str:
             return f"UPDATE {self.experience_schema} SET {', '.join([field_name + '=?' for field_name in field_names])} WHERE userid=? LIMIT 1"
@@ -164,11 +170,20 @@ class XPHandling(commands.Cog):
         def update_role_scalar(self, changed_fields):
             return self.generic_update(self.role_scalars_schema, changed_fields, "roleid=?")
 
-        def select_auto_role(self, fields_to_select):
-            return f"SELECT {', '.join(fields_to_select)} FROM {self.roles_schema} WHERE roleid=?"
+        def select_auto_roles(self, fields_to_select):
+            return f"SELECT {', '.join(fields_to_select)} FROM {self.roles_schema}"
 
-        def select_role_scalar(self, fields_to_select):
-            return f"SELECT {', '.join(fields_to_select)} FROM {self.role_scalars_schema} WHERE roleid=?"
+        def select_role_scalars(self, fields_to_select):
+            return f"SELECT {', '.join(fields_to_select)} FROM {self.role_scalars_schema}"
+
+        def select_auto_role_by_id(self, fields_to_select):
+            return f"{self.select_auto_roles(fields_to_select)} WHERE roleid=?"
+
+        def select_role_scalar_by_id(self, fields_to_select):
+            return f"{self.select_role_scalars(fields_to_select)} WHERE roleid=?"
+
+        def select_auto_roles_by_condition(self, fields_to_select, condition):
+            return f"{self.select_auto_roles(fields_to_select)} WHERE {condition}"
 
     class XPCurve:
 
@@ -242,7 +257,8 @@ class XPHandling(commands.Cog):
         self.apply_defaults()
         self.level_curve = self.XPCurve(self.level_curve_scalar, self.level_curve_power)
 
-        self.level_up_subscribers = []
+        self.level_up_event = SubscribableEvent()
+        self.level_changed_event = SubscribableEvent()
         self._xp_additions = defaultdict(lambda: 0)
 
     def cog_load(self) -> None:
@@ -350,7 +366,7 @@ class XPHandling(commands.Cog):
         field_names : [str]
             Array of field names to query.
         """
-        return self.basic_database_query(self.sql_commands.select_by_userid(field_names), (user_id,), 1)
+        return self.basic_database_query(self.sql_commands.select_member_by_userid(field_names), (user_id,), 1)
 
     def database_get_many_by_userid(self, user_ids: [int], field_names: [str]) -> [sqlite3.Row]:
         """Query the experience database for some users' fields.
@@ -362,7 +378,7 @@ class XPHandling(commands.Cog):
         field_names : [str]
             Array of field names to query.
         """
-        return self.basic_database_query(self.sql_commands.select_many_by_userid(field_names, len(user_ids)), tuple(user_ids), -1)
+        return self.basic_database_query(self.sql_commands.select_many_members_by_userid(field_names, len(user_ids)), tuple(user_ids), -1)
 
     def basic_database_execute(self, command: str, fields: tuple[Any, ...] = tuple()):
         with self.database_connection, SafeCursor(self.database_connection) as cursor:
@@ -478,6 +494,7 @@ class XPHandling(commands.Cog):
                 new_level = curve.get_floored_level_from_experience(experience_data["experience"])
 
                 self.basic_database_execute(update_by_userid_command, (new_level, experience_data["userid"]))
+                self.bot.loop.create_task(self.on_level_changed(experience_data["userid"], new_level))
 
     def update_level_curve(self, scalar: Optional[float], power: Optional[float], maintain_level: bool):
         """Update the level XP requirement curve.
@@ -596,8 +613,14 @@ class XPHandling(commands.Cog):
         self._xp_additions[user_id] += xp_quantity
 
     def _set_experience(self, user_id: int, xp_quantity: float):
+        current_data = self.database_get_by_userid(user_id, ("experience", "experience_level"))
+
+        if current_data is None:
+            self.database_insert_userid(user_id)
+
         new_level = self.level_curve.get_floored_level_from_experience(xp_quantity)
         self.database_update_by_userid(user_id, {"experience": xp_quantity, "experience_level": new_level})
+        self.bot.loop.create_task(self.on_level_changed(user_id, new_level))
 
     def _set_experience_level(self, user_id: int, xp_level: float):
         new_xp_quantity = self.level_curve.get_level_experience_requirement(xp_level)
@@ -617,7 +640,7 @@ class XPHandling(commands.Cog):
             raise ValueError
 
     def get_member_experience_info(self, user_id: int) -> sqlite3.Row or dict:
-        result = self.database_get_by_userid(user_id, ("experience", "experience_level", self.sql_commands.rank_field))
+        result = self.database_get_by_userid(user_id, ("experience", "experience_level", "rank"))
 
         if result is None:
             return {"experience": 0, "experience_level": 0, "rank": "N/A"}
@@ -647,13 +670,13 @@ class XPHandling(commands.Cog):
     def create_level_up_task(self, user_id: int, new_level: int):
         self.bot.loop.create_task(self.on_level_up(user_id, new_level))
 
-    def add_level_up_subscriber(self, subscriber: Callable[[ExperienceMember, int], Awaitable[None]]):
-        self.level_up_subscribers.append(subscriber)
+    async def on_level_changed(self, user_id: int, new_level: int) -> None:
+        member = await(self.get_experience_member(user_id))
+        await self.level_changed_event.fire(member, new_level)
 
-    async def on_level_up(self, user_id: int, new_level: int):
+    async def on_level_up(self, user_id: int, new_level: int) -> None:
         member = await self.get_experience_member(user_id)
-        for subscriber in self.level_up_subscribers:
-            await subscriber(member, new_level)
+        await self.level_up_event.fire(member, new_level)
 
     async def do_experience_additions_for_user_id(self, user_id: int):
         to_add = self._xp_additions.pop(user_id)
