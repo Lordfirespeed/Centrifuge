@@ -227,7 +227,8 @@ class XPHandling(commands.Cog):
 
         def get_level_progress_from_experience(self, xp_quantity: float) -> float:
             """Query progress from the previous to the next level based upon an XP quantity."""
-            return self.get_level_from_experience(xp_quantity) % 1
+            from_level = self.get_floored_level_from_experience(xp_quantity)
+            return self.get_experience_above_level(xp_quantity, from_level) / self.get_relative_level_experience_requirement(from_level+1)
 
         def get_level_from_experience(self, xp_quantity: float) -> float:
             """Query the exact experience level (as float) of an arbitrary user based on XP quantity."""
@@ -665,7 +666,13 @@ class XPHandling(commands.Cog):
 
     @staticmethod
     def format_xp_quantity(xp_quantity):
-        return f"{round(xp_quantity / 1000, 1)}k"
+        if xp_quantity < 0:
+            return "<0"
+        if xp_quantity < 1_000:
+            return round(xp_quantity)
+        if xp_quantity < 1_000_000:
+            return f"{round(xp_quantity / 1_000, 1)}K"
+        return f"{round(xp_quantity) / 1_000_000, 1}M"
 
     def create_level_up_task(self, user_id: int, new_level: int):
         self.bot.loop.create_task(self.on_level_up(user_id, new_level))
