@@ -115,7 +115,7 @@ class AutoroleCommands(XPCommandCog):
 
     def get_comprehensive_role_ids_to_deassign(self, at_level: int) -> [int]:
         """Returns all role IDs that some arbitrary user of XP level at_level should be deassigned."""
-        return self.get_auto_role_ids_by_condition("assign_at >=? OR (remove_at<? AND remove_at>0)", (at_level, at_level))
+        return self.get_auto_role_ids_by_condition("assign_at >? OR (remove_at<=? AND remove_at>0)", (at_level, at_level))
 
     def get_role_ids_to_assign(self, at_level: int) -> [int]:
         """Returns role IDs that should be newly assigned at at_level."""
