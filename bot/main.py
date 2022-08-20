@@ -21,14 +21,16 @@ class GuildBot(commands.Bot):
                           "cogs.xp.group",
                           "cogs.xp.main",
                           "cogs.xp.listeners",
-                          "cogs.xp.commands.show",
-                          "cogs.xp.commands.curve",
-                          "cogs.xp.commands.rolescalar",
+                          "cogs.xp.voice",
                           "cogs.xp.commands.autorole",
-                          "cogs.xp.commands.set",
                           "cogs.xp.commands.announce",
+                          "cogs.xp.commands.curve",
+                          "cogs.xp.commands.leaderboard",
                           "cogs.xp.commands.reward",
-                          "cogs.xp.commands.leaderboard"]
+                          "cogs.xp.commands.rolescalar",
+                          "cogs.xp.commands.set",
+                          "cogs.xp.commands.show"
+                          ]
 
     def __init__(self, guild, *args, **kwargs):
         super().__init__(*args, **kwargs)
