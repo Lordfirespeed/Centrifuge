@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import json
+from random import random, choice
 from os import getcwd
 from html2image import Html2Image
 from contextlib import closing as contextlib_closing
@@ -27,6 +29,14 @@ class DeletingFile:
 
 
 class ExtraCardFields:
+    __slots__ = ["party_emoji",
+                 "rare_party_emoji"]
+
+    def __init__(self):
+        self.party_emoji: [str] = []
+        self.rare_party_emoji: dict[str, float] = {}
+        self.load_party_emoji()
+
     @staticmethod
     def previous_level_requirement(card: UserDisplayCard):
         return XPHandling.format_xp_quantity(card.member.get_current_level_requirement())
@@ -46,21 +56,37 @@ class ExtraCardFields:
             return "255,255,255"
         return str(colour.to_rgb())[1:-1]
 
-    @staticmethod
-    def party(*args, **kwargs):
-        return "🎉"
+    def load_party_emoji(self):
+        with open("data/xp/party_emojis.json") as party_emoji_file:
+            try:
+                party_emoji_data = json.load(party_emoji_file)
+            except json.decoder.JSONDecodeError:
+                return
+
+        self.party_emoji = party_emoji_data["main"]
+        self.rare_party_emoji = party_emoji_data["rare"]
+
+    def party(self, *args, **kwargs):
+        random_rare_selected = random()
+        cumulative_rare_chance = 0
+        for rare_emoji, rare_chance in self.rare_party_emoji.items():
+            cumulative_rare_chance += rare_chance
+            if random_rare_selected < cumulative_rare_chance:
+                return rare_emoji
+
+        return choice(self.party_emoji)
 
 
 class UserDisplayCard:
     global html_renderer
     temp_directory = Path("data/xp/temp_cards/")
     card_directory = Path("data/xp/html_cards/")
-
-    extra_fields = {UserDisplayCardType.DisplayProgress: {"previous_level_requirement": ExtraCardFields.previous_level_requirement,
-                                                          "next_level_requirement": ExtraCardFields.next_level_requirement,
-                                                          "level_progress_percentage": ExtraCardFields.level_progress_percentage},
-                    UserDisplayCardType.LevelUp: {"party1": ExtraCardFields.party,
-                                                  "party2": ExtraCardFields.party}
+    extra_fields_generator = ExtraCardFields()
+    extra_fields = {UserDisplayCardType.DisplayProgress: {"previous_level_requirement": extra_fields_generator.previous_level_requirement,
+                                                          "next_level_requirement": extra_fields_generator.next_level_requirement,
+                                                          "level_progress_percentage": extra_fields_generator.level_progress_percentage},
+                    UserDisplayCardType.LevelUp: {"party1": extra_fields_generator.party,
+                                                  "party2": extra_fields_generator.party}
                     }
 
     def __init__(self, member: ExperienceMember, card_type: UserDisplayCardType):
