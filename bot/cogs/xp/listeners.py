@@ -6,9 +6,6 @@ import logging
 
 
 class XPListeners(XPCog):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def award_reply_xp(self, message: discord.Message) -> None:
         try:
             assert message.reference is not None
@@ -40,7 +37,7 @@ class XPListeners(XPCog):
         except AssertionError:
             return
 
-        logging.debug(f"Saw message from {message.author.name}")
+        # logging.debug(f"Saw message from {message.author.name}")
 
         self.handler.add_experience(message.author.id, self.handler.reward_xp_message)
 
