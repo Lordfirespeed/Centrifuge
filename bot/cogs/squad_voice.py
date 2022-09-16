@@ -131,7 +131,7 @@ class SquadVoice(commands.Cog):
 
         in_channel = voice_state.channel
         try:
-            return self.all_temporary_channels[in_channel]
+            return self.all_temporary_channels[in_channel.id]
         except KeyError:
             await interaction.response.send_message("You are not in a temporary voice channel.", ephemeral=True)
             return None
@@ -140,6 +140,7 @@ class SquadVoice(commands.Cog):
         temporary_channel = await self.get_temporary_channel(interaction)
         if not temporary_channel:
             return
+
         if size == 0:
             size = None
         elif size < 0:
@@ -330,7 +331,6 @@ class SquadVoice(commands.Cog):
             """
             temporary_channel = await self.get_temporary_channel(interaction)
             if not temporary_channel:
-                await interaction.response.send_message(f"You are not in a temporary voice channel.", ephemeral=True)
                 return
 
             await temporary_channel.edit(user_limit=None)
