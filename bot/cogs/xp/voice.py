@@ -14,6 +14,7 @@ class VoiceXP(XPCog):
         self.member_ids_connection_times: dict[int, datetime] = {}
 
     async def cog_load(self) -> None:
+        await super(VoiceXP, self).cog_load()
         self.do_voice_xp_additions.start()
 
     @commands.Cog.listener()
@@ -51,7 +52,7 @@ class VoiceXP(XPCog):
         minutes_to_add_xp_for = min((time_to_add_xp_for.total_seconds() / 60), 2)
         if minutes_to_add_xp_for < 0:
             return
-        self.handler.add_experience(member_id, self.handler.reward_xp_voice * minutes_to_add_xp_for)
+        self.handler.add_experience_from_action(member_id, self.handler.reward_xp_voice * minutes_to_add_xp_for)
 
     @tasks.loop(seconds=60.0)
     async def do_voice_xp_additions(self):

@@ -24,9 +24,11 @@ class ShowCommand(XPCommandCog):
 
             experience_member = self.handler.convert_to_experience_member(member)
 
+            await interaction.response.defer()
+
             display_card = UserDisplayCard(experience_member, UserDisplayCardType.DisplayProgress)
             with display_card.get_png_card() as png_card:
-                await interaction.response.send_message(file=discord.File(png_card.file))
+                await interaction.followup.send(file=discord.File(png_card.file))
 
 
 setup = extension_setup(ShowCommand)

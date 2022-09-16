@@ -21,7 +21,7 @@ class AutoroleCommands(XPCommandCog):
         self.autorole_command_group = app_commands.Group(name="autorole",
                                                          description="Commands relating to automatically assigning roles based on user XP levels.",
                                                          guild_only=True,
-                                                         parent=self.command_group_cog.xp_commands)
+                                                         parent=self.command_group_cog.admin_xp_commands)
 
     def register_commands(self) -> None:
         @self.autorole_command_group.command(name="create")
@@ -30,8 +30,8 @@ class AutoroleCommands(XPCommandCog):
         async def create_autorole(interaction: discord.Interaction,
                                   role: discord.Role,
                                   assign_at: int,
-                                  remove_at: int):
-            """Assign an XP scalar to a role.
+                                  remove_at: Optional[int]):
+            """Create an XP level autorole rule.
 
             Parameters
             ----------
@@ -44,6 +44,8 @@ class AutoroleCommands(XPCommandCog):
             remove_at : int
                 The XP level that the role will be removed at.
             """
+            if remove_at is None:
+                remove_at = 0
             self.handler.create_autorole(role, assign_at, remove_at)
             await interaction.response.send_message(f"Successfully created autorole rule for {role.mention}.")
 
@@ -87,7 +89,36 @@ class AutoroleCommands(XPCommandCog):
             self.handler.remove_autorole(role)
             await interaction.response.send_message(f"Successfully removed {role.mention}'s autorole rule.")
 
-        @self.autorole_command_group.command(name="refreshme")
+        @self.autorole_command_group.command(name="summary")
+        @app_commands.default_permissions(manage_guild=True)
+        @standard_error_handling
+        async def summarise_scalars(interaction: discord.Interaction):
+            """Summarise all autorole info for the server.
+
+            Parameters
+            ----------
+            interaction : discord.Interaction
+                The interaction object.
+            """
+            pass
+
+        @self.autorole_command_group.command(name="show")
+        @app_commands.default_permissions(manage_guild=True)
+        @standard_error_handling
+        async def show_scalar(interaction: discord.Interaction,
+                              role: discord.Role):
+            """Show the autorole info for a role, if any exists.
+
+            Parameters
+            ----------
+            interaction : discord.Interaction
+                The interaction object.
+            role : discord.Role
+                The role whose autorole info will be displayed.
+            """
+            pass
+
+        @self.command_group_cog.xp_commands.command(name="refreshmyroles")
         @standard_error_handling
         async def refresh_self(interaction: discord.Interaction):
             """Refresh your XP autoroles. Use this if you believe you're missing XP level roles."""

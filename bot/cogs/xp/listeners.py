@@ -14,7 +14,7 @@ class XPListeners(XPCog):
         except AssertionError:
             return
 
-        self.handler.add_experience(message.reference.cached_message.author.id, self.handler.reward_xp_reply)
+        self.handler.add_experience_from_action(message.reference.cached_message.author.id, self.handler.reward_xp_reply)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
@@ -25,7 +25,7 @@ class XPListeners(XPCog):
         except AssertionError:
             return
 
-        self.handler.add_experience(payload.member.id, self.handler.reward_xp_react)
+        self.handler.add_experience_from_action(payload.member.id, self.handler.reward_xp_react)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -39,7 +39,7 @@ class XPListeners(XPCog):
 
         # logging.debug(f"Saw message from {message.author.name}")
 
-        self.handler.add_experience(message.author.id, self.handler.reward_xp_message)
+        self.handler.add_experience_from_action(message.author.id, self.handler.reward_xp_message)
 
         self.award_reply_xp(message)
 

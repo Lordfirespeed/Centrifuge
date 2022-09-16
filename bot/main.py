@@ -1,5 +1,5 @@
 from typing import Awaitable, Callable, Optional
-from os import getenv
+from os import getenv, getcwd
 import logging
 import discord
 from discord.ext import commands
@@ -83,11 +83,12 @@ async def load_dependencies(bot: GuildBot, cog: DependentCog) -> None:
         await bot.load_extension(dependency)
 
 
-def extension_setup(cog: commands.Cog.__class__) -> Callable[[GuildBot], Awaitable[None]]:
+def extension_setup(*args: [commands.Cog.__class__]) -> Callable[[GuildBot], Awaitable[None]]:
     async def setup(bot: GuildBot) -> None:
-        new_cog = cog(bot)
-        await bot.add_cog(new_cog, guilds=[bot.guild])
-        await load_dependencies(bot, cog)
+        for cog in args:
+            new_cog = cog(bot)
+            await bot.add_cog(new_cog, guilds=[bot.guild])
+            await load_dependencies(bot, cog)
 
     return setup
 
@@ -111,5 +112,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG, filename="botlog.log", filemode="w")
+    logging.debug(f"CWD: {getcwd()}")
     main()

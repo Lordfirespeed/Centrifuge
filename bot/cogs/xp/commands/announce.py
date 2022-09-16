@@ -25,7 +25,7 @@ class AnnounceLevelUps(XPCommandCog):
         self.announce_command_group = app_commands.Group(name="announce",
                                                          description="Commands relating to level-up announcements.",
                                                          guild_only=True,
-                                                         parent=self.command_group_cog.xp_commands)
+                                                         parent=self.command_group_cog.admin_xp_commands)
 
     def register_commands(self) -> None:
         @self.announce_command_group.command(name="channel")
