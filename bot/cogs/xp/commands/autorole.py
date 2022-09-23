@@ -123,7 +123,7 @@ class AutoroleCommands(XPCommandCog):
         async def refresh_self(interaction: discord.Interaction):
             """Refresh your XP autoroles. Use this if you believe you're missing XP level roles."""
             await self.refresh_member_autoroles(interaction.user)
-            await interaction.response.send_message(f"Successfully refreshed your XP level autoroles.")
+            await interaction.response.send_message(f"Successfully refreshed your XP level autoroles.", ephemeral=True)
 
         @self.autorole_command_group.command(name="refresh")
         @app_commands.default_permissions(manage_guild=True)
