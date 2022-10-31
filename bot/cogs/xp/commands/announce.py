@@ -85,7 +85,7 @@ class AnnounceLevelUps(XPCommandCog):
     async def level_up_announcement(self, member: ExperienceMember, leveled_to: int) -> None:
         if not self.level_up_channel:
             return
-
+        member.level = leveled_to
         display_card = UserDisplayCard(member, UserDisplayCardType.LevelUp)
         with display_card.get_png_card() as png_card:
             await self.level_up_channel.send(file=discord.File(png_card.file))
