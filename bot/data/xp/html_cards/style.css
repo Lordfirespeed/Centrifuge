@@ -56,8 +56,8 @@ body{
 }
 
 .circle_img {
-    width: 90%;
-    height: auto;
+    height: 75%;
+    width: auto;
     aspect-ratio: 1;
     border-radius: 50%;
     overflow: hidden;

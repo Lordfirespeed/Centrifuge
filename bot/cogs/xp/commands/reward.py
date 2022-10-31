@@ -7,14 +7,13 @@ from bot.exceptions import standard_error_handling
 
 class RewardCommands(XPCommandCog):
     def register_commands(self) -> None:
-        @self.command_group_cog.xp_commands.command(name="reward")
+        @self.command_group_cog.admin_xp_commands.command(name="reward")
         @app_commands.choices(action=[
             app_commands.Choice(name="message", value="message"),
             app_commands.Choice(name="voice", value="voice"),
             app_commands.Choice(name="reply", value="reply"),
             app_commands.Choice(name="react", value="react")
         ])
-        @app_commands.default_permissions(manage_guild=True)
         @standard_error_handling
         async def set_xp_reward(interaction: discord.Interaction,
                                 action: app_commands.Choice[str],
@@ -33,7 +32,7 @@ class RewardCommands(XPCommandCog):
             self.handler.set_xp_reward_for_action(action.value, reward)
             await interaction.response.send_message(content=f"Successfully set XP reward for `{action.name}` to `{reward}`xp.")
 
-        @self.command_group_cog.xp_commands.command(name="cap")
+        @self.command_group_cog.admin_xp_commands.command(name="cap")
         @app_commands.default_permissions(manage_guild=True)
         @standard_error_handling
         async def set_xp_gain_cap(interaction: discord.Interaction,

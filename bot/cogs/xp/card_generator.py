@@ -107,7 +107,7 @@ class UserDisplayCard:
         data = {
             "username": self.member.display_name,
             "discriminator": self.member.discriminator,
-            "profile_url": self.member.display_avatar,
+            "profile_url": self.member.display_avatar.with_size(128),
             "level": self.member.level,
             "rank": self.member.rank,
             "xp_quantity": XPHandling.format_xp_quantity(self.member.xp_quantity),

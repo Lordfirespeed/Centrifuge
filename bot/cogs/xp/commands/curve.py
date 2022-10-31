@@ -7,12 +7,11 @@ from bot.cogs.xp.main import XPCommandCog
 
 class CurveCommand(XPCommandCog):
     def register_commands(self):
-        @self.command_group_cog.xp_commands.command(name="curve")
+        @self.command_group_cog.admin_xp_commands.command(name="curve")
         @app_commands.choices(maintain=[
             app_commands.Choice(name="xp", value=0),
             app_commands.Choice(name="level", value=1)
         ])
-        @app_commands.default_permissions(manage_guild=True)
         async def curve(interaction: discord.Interaction,
                         scalar: Optional[float],
                         power: Optional[float],

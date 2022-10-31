@@ -4,7 +4,7 @@ from typing import Optional
 import discord
 import re
 from discord import app_commands, utils
-from discord.ext import commands
+from discord.ext import commands, tasks
 from collections import defaultdict
 import json
 import asyncio
@@ -31,11 +31,12 @@ class SquadVoice(commands.Cog):
     async def cog_load(self) -> None:
         self.create_command_groups()
         self.register_voice_creator_commands_to_group()
+        self.register_created_channel_commands_to_group()
 
         self.channel_creators_path.touch(exist_ok=True)
         self.temporary_channels_path.touch(exist_ok=True)
 
-        await self.load_from_json()
+        self.bot.loop.create_task(self.load_from_json())
 
     def cog_unload(self) -> None:
         if self.channel_creators:
@@ -61,6 +62,8 @@ class SquadVoice(commands.Cog):
             json.dump(data, writefile, indent=2)
 
     async def load_channel_creators_from_json(self):
+        await self.bot.wait_until_ready()
+
         with open("data/squad_voice/channel-creators.json", "r") as readfile:
             try:
                 channel_creators_data = json.load(readfile)
@@ -98,11 +101,11 @@ class SquadVoice(commands.Cog):
 
         for temporary_channel_data in temporary_channels_data:
             try:
-                channel = await self.bot.fetch_channel(temporary_channel_data["channel_id"])
+                channel: discord.VoiceChannel = await self.bot.fetch_channel(temporary_channel_data["channel_id"])
             except discord.NotFound:
                 continue
 
-            if len(channel.voice_states) == 0:
+            if len(channel.members) == 0:
                 await channel.delete()
             elif channel and temporary_channel_data["creator"] in self.channel_creators.keys():
                 channel_creator = self.channel_creators[temporary_channel_data["creator"]]
@@ -127,26 +130,24 @@ class SquadVoice(commands.Cog):
             return None
 
         in_channel = voice_state.channel
-        if in_channel.id not in self.all_temporary_channels.keys():
+        try:
+            return self.all_temporary_channels[in_channel.id]
+        except KeyError:
             await interaction.response.send_message("You are not in a temporary voice channel.", ephemeral=True)
             return None
-
-        return in_channel
 
     async def do_limit_command(self, interaction: discord.Interaction, size, message):
         temporary_channel = await self.get_temporary_channel(interaction)
         if not temporary_channel:
             return
+
         if size == 0:
             size = None
         elif size < 0:
             await interaction.response.send_message("Cannot set negative channel size.", ephemeral=True)
             return
 
-        success = await temporary_channel.edit(user_limit=size, forced=False)
-        if not success:
-            await interaction.response.send_messaged(f"Please wait 60s to use that command again.", ephemeral=True)
-            return
+        await temporary_channel.edit(user_limit=size)
 
         await interaction.response.send_message(message % (temporary_channel.channel.mention, size or "unlimited"))
 
@@ -289,6 +290,7 @@ class SquadVoice(commands.Cog):
 
     def register_created_channel_commands_to_group(self):
         @self.created_channel_commands.command(name="resize")
+        @app_commands.checks.cooldown(2, 60)
         async def _resize(interaction: discord.Interaction,
                           size: int):
             """Resize your voice channel.
@@ -303,6 +305,7 @@ class SquadVoice(commands.Cog):
             await self.do_limit_command(interaction, size, "Successfully set %s size to `%s`")
 
         @self.created_channel_commands.command(name="limit")
+        @app_commands.checks.cooldown(2, 60)
         async def _limit(interaction: discord.Interaction,
                          limit: int):
             """Apply a user limit to your voice channel. 0 removes the limit.
@@ -317,6 +320,7 @@ class SquadVoice(commands.Cog):
             await self.do_limit_command(interaction, limit, "Successfully limited %s to `%s`")
 
         @self.created_channel_commands.command(name="unlimit")
+        @app_commands.checks.cooldown(2, 60)
         async def _unlimit(interaction: discord.Interaction):
             """Unlimit your voice channel."
 
@@ -327,18 +331,15 @@ class SquadVoice(commands.Cog):
             """
             temporary_channel = await self.get_temporary_channel(interaction)
             if not temporary_channel:
-                await interaction.response.send_message(f"You are not in a temporary voice channel.", ephemeral=True)
                 return
 
-            success = await temporary_channel.edit(user_limit=None, forced=False)
-            if not success:
-                await interaction.response.send_message(f"Please wait 60s to use that command again.", ephemeral=True)
-                return
+            await temporary_channel.edit(user_limit=None)
 
             await interaction.response.send_message(f"Successfully unlimited {temporary_channel.channel.mention}")
 
         @self.created_channel_commands.command(name="rename")
-        async def _rename(self, interaction: discord.Interaction,
+        @app_commands.checks.cooldown(2, 60)
+        async def _rename(interaction: discord.Interaction,
                           name: str):
             """Rename your voice channel.
 
@@ -357,10 +358,7 @@ class SquadVoice(commands.Cog):
                 await interaction.response.send_message("Please don't use misleading channel names.", ephemeral=True)
                 return
 
-            success = await temporary_channel.edit(name=name, forced=False)
-            if not success:
-                await interaction.response.send_message(f"Please wait 60s to use that command again.", ephemeral=True)
-                return
+            await temporary_channel.edit(name=name)
 
             await interaction.response.send_message(f"Successfully renamed {temporary_channel.channel.mention}")
 
@@ -416,15 +414,18 @@ class ChannelCreator:
     async def edit(self, create_name: str = None, create_category: discord.CategoryChannel = None,
                    create_user_limit: int = False):
         changed = False
-        if create_name:
+        if create_name is not None:
             self.create_name = create_name
             changed = True
 
-        if create_user_limit or create_user_limit is None:
-            self.create_user_limit = create_user_limit
+        if create_user_limit is not None:
+            if create_user_limit <= 0:
+                self.create_user_limit = None
+            else:
+                self.create_user_limit = int(create_user_limit)
             changed = True
 
-        if create_category:
+        if create_category is not None:
             self.create_category = create_category
 
             changed = True
@@ -499,44 +500,28 @@ class TemporaryChannel:
             self.cog.dump_temporary_channels()
 
     async def edit(self, index: int = None, category: discord.CategoryChannel = False, name: str = None,
-                   user_limit: Optional[int] or bool = False, forced=True):
+                   user_limit: Optional[int] or bool = False) -> None:
+
         changed = False
-        on_timer = False
         if index:
-            if self.edited_recently["index"]:
-                on_timer = True
-            elif not forced:
-                self.make_edit_timer(60, "index")
-                self.index = index
-                changed = True
+            self.index = index
+            changed = True
 
         if category or category is None:
             self.category = category
             changed = True
 
         if name:
-            if self.edited_recently["name"]:
-                on_timer = True
-            elif not forced:
-                self.make_edit_timer(60, "name")
-                self.name = name
-                changed = True
+            self.name = name
+            changed = True
 
         if user_limit or user_limit is None:
-            if self.edited_recently["user_limit"]:
-                on_timer = True
-            elif not forced:
-                self.make_edit_timer(60, "user_limit")
-                self.user_limit = user_limit
-                changed = True
+            self.user_limit = user_limit
+            changed = True
 
-        if on_timer and not forced:
-            return False
-
-        if changed and ((not on_timer) or forced):
+        if changed:
             await self.channel.edit(name=self.make_name(), category=self.category,
                                     user_limit=self.user_limit if self.user_limit is not None else 0)
-        return True
 
 
 setup = extension_setup(SquadVoice)

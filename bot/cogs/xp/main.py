@@ -19,7 +19,7 @@ def SafeCursor(conn: sqlite3.Connection) -> contextlib_closing[sqlite3.Cursor]:
     return contextlib_closing(conn.cursor())
 
 
-class SetExperienceType(Enum):
+class ExperienceQuantityType(Enum):
     level = 1
     xp = 2
 
@@ -75,6 +75,9 @@ class ExperienceMember(discord.Member):
     def get_level_progress(self) -> float:
         """Query the user's progress from their current to their next level."""
         return self.xp_handler.level_curve.get_level_progress_from_experience(self.xp_quantity)
+
+    def get_level_float_from_xp_quantity(self) -> float:
+        return self.xp_handler.level_curve.get_level_from_experience(self.xp_quantity)
 
 
 class XPHandling(commands.Cog):
@@ -383,10 +386,15 @@ class XPHandling(commands.Cog):
 
     def basic_database_execute(self, command: str, fields: tuple[Any, ...] = tuple()):
         with self.database_connection, SafeCursor(self.database_connection) as cursor:
+            logging.debug(f"SQL EXECUTE {command}")
             cursor.execute(command, fields)
 
     def basic_database_execute_many(self, command: str, fields_array: [tuple[Any, ...]]):
+        if len(fields_array) == 0:
+            return
+
         with self.database_connection, SafeCursor(self.database_connection) as cursor:
+            logging.debug(f"SQL EXECUTEMANY {command} ... {fields_array}")
             cursor.executemany(command, fields_array)
 
     def database_update_by_userid(self, user_id: int, fields: dict[str, Any]):
@@ -416,7 +424,7 @@ class XPHandling(commands.Cog):
         self.basic_database_execute(self.sql_commands.delete_auto_role(), (role_id,))
 
     def database_autorole_exists(self, role_id: int):
-        database_entry = self.basic_database_query(self.sql_commands.select_auto_role(("roleid",)), (role_id,))
+        database_entry = self.basic_database_query(self.sql_commands.select_auto_role_by_id(("roleid",)), (role_id,))
         return database_entry is not None
 
     def create_autorole(self, role: discord.Role, assign_at: int, remove_at: int):
@@ -450,7 +458,7 @@ class XPHandling(commands.Cog):
         self.basic_database_execute(self.sql_commands.delete_role_scalar(), (role_id,))
 
     def database_role_scalar_exists(self, role_id: int):
-        database_entry = self.basic_database_query(self.sql_commands.select_role_scalar(("roleid",)), (role_id,))
+        database_entry = self.basic_database_query(self.sql_commands.select_role_scalar_by_id(("roleid",)), (role_id,))
         return database_entry is not None
 
     def assign_role_scalar(self, role: discord.Role, scalar: float, priority: int):
@@ -610,7 +618,7 @@ class XPHandling(commands.Cog):
         del to_insert
         del to_write
 
-    def add_experience(self, user_id: int, xp_quantity: float):
+    def add_experience_from_action(self, user_id: int, xp_quantity: float):
         self._xp_additions[user_id] += xp_quantity
 
     def _set_experience(self, user_id: int, xp_quantity: float):
@@ -627,16 +635,40 @@ class XPHandling(commands.Cog):
         new_xp_quantity = self.level_curve.get_level_experience_requirement(xp_level)
         self._set_experience(user_id, new_xp_quantity)
 
-    def set_member_experience(self, member: discord.Member, coefficient: float, set_type: SetExperienceType):
+    def set_member_experience(self, member: discord.Member, coefficient: float, set_type: ExperienceQuantityType):
+        """Method used for setting a member's experience quantity via a command."""
         if coefficient < 0:
             raise exceptions.ValueErrorWithMessage("Coefficient must be positive.")
         if coefficient == 0:
-            set_type = SetExperienceType.xp
+            set_type = ExperienceQuantityType.xp
 
-        if set_type.value == SetExperienceType.xp.value:
+        if set_type.value == ExperienceQuantityType.xp.value:
             self._set_experience(member.id, coefficient)
-        elif set_type.value == SetExperienceType.level.value:
+        elif set_type.value == ExperienceQuantityType.level.value:
             self._set_experience_level(member.id, coefficient)
+        else:
+            raise ValueError
+
+    def _add_experience(self, experience_member: ExperienceMember, xp_quantity: float):
+        new_xp_quantity = experience_member.xp_quantity + xp_quantity
+        self._set_experience(experience_member.id, new_xp_quantity)
+
+    def _add_experience_levels(self, experience_member: ExperienceMember, xp_levels: float):
+        new_xp_level = experience_member.get_level_float_from_xp_quantity() + xp_levels
+        new_xp_quantity = int(self.level_curve.get_level_experience_requirement(new_xp_level)) + 1
+        self._set_experience(experience_member.id, new_xp_quantity)
+
+    def add_member_experience(self, member: discord.Member, coefficient: float, add_type: ExperienceQuantityType):
+        """Method used for adding experience to a member via a command."""
+        if coefficient == 0:
+            return
+
+        experience_member = self.convert_to_experience_member(member)
+
+        if add_type.value == ExperienceQuantityType.xp.value:
+            self._add_experience(experience_member, coefficient)
+        elif add_type.value == ExperienceQuantityType.level.value:
+            self._add_experience_levels(experience_member, coefficient)
         else:
             raise ValueError
 
@@ -672,7 +704,7 @@ class XPHandling(commands.Cog):
             return round(xp_quantity)
         if xp_quantity < 1_000_000:
             return f"{round(xp_quantity / 1_000, 1)}K"
-        return f"{round(xp_quantity) / 1_000_000, 1}M"
+        return f"{round(xp_quantity / 1_000_000, 1)}M"
 
     def create_level_up_task(self, user_id: int, new_level: int):
         self.bot.loop.create_task(self.on_level_up(user_id, new_level))

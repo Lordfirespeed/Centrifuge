@@ -15,11 +15,10 @@ class ScalarCommands(XPCommandCog):
         self.scalar_command_group = app_commands.Group(name="rolescalar",
                                                        description="Commands relating to role XP scalars.",
                                                        guild_only=True,
-                                                       parent=self.command_group_cog.xp_commands)
+                                                       parent=self.command_group_cog.admin_xp_commands)
 
     def register_commands(self) -> None:
         @self.scalar_command_group.command(name="assign")
-        @app_commands.default_permissions(manage_guild=True)
         @standard_error_handling
         async def assign_scalar(interaction: discord.Interaction,
                                 role: discord.Role,
@@ -42,7 +41,6 @@ class ScalarCommands(XPCommandCog):
             await interaction.response.send_message(f"Successfully assigned XP scalar `{power}` to {role.mention} with priority `{priority}`.")
 
         @self.scalar_command_group.command(name="modify")
-        @app_commands.default_permissions(manage_guild=True)
         @standard_error_handling
         async def modify_scalar(interaction: discord.Interaction,
                                 role: discord.Role,
@@ -65,7 +63,6 @@ class ScalarCommands(XPCommandCog):
             await interaction.response.send_message(f"Successfully updated {role.mention}'s XP scalar.")
 
         @self.scalar_command_group.command(name="remove")
-        @app_commands.default_permissions(manage_guild=True)
         @standard_error_handling
         async def remove_scalar(interaction: discord.Interaction,
                                 role: discord.Role):
@@ -80,6 +77,33 @@ class ScalarCommands(XPCommandCog):
             """
             self.handler.remove_role_scalar(role)
             await interaction.response.send_message(f"Successfully removed {role.mention}'s XP scalar.")
+
+        @self.scalar_command_group.command(name="summary")
+        @standard_error_handling
+        async def summarise_scalars(interaction: discord.Interaction):
+            """Summarise all role scalar info for the server.
+
+            Parameters
+            ----------
+            interaction : discord.Interaction
+                The interaction object.
+            """
+            pass
+
+        @self.scalar_command_group.command(name="show")
+        @standard_error_handling
+        async def show_scalar(interaction: discord.Interaction,
+                              role: discord.Role):
+            """Show the scalar info for a role, if any exists.
+
+            Parameters
+            ----------
+            interaction : discord.Interaction
+                The interaction object.
+            role : discord.Role
+                The role whose XP scalar will be displayed.
+            """
+            pass
 
 
 setup = extension_setup(ScalarCommands)
