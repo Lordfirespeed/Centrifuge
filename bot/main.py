@@ -83,7 +83,7 @@ class GuildBot(commands.Bot):
     async def load_extension(self, extension_name: str, *args, **kwargs) -> None:
         if extension_name in self.loaded_extensions:
             return
-        print(f"Loading {extension_name}")
+        logging.debug(f"Loading {extension_name}...")
         await super().load_extension(extension_name, *args, **kwargs)
         self.loaded_extensions.add(extension_name)
 
