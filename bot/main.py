@@ -8,9 +8,12 @@ from dotenv import load_dotenv
 from bot.theme import EmbedTheme
 
 
-class FeatureCog(commands.Cog.__class__):
+class FeatureCog(commands.Cog):
     dependencies = Optional[tuple[str]]
     features = Optional[tuple[str]]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     @classmethod
     async def load_features(cls, bot: GuildBot) -> None:
@@ -38,18 +41,7 @@ class GuildBot(commands.Bot):
                           "cogs.misc.ping",
                           "cogs.misc.restart",
                           "cogs.misc.badger",
-                          "cogs.xp.group",
                           "cogs.xp.main",
-                          "cogs.xp.listeners",
-                          "cogs.xp.voice",
-                          "cogs.xp.commands.autorole",
-                          "cogs.xp.commands.announce",
-                          "cogs.xp.commands.curve",
-                          "cogs.xp.commands.leaderboard",
-                          "cogs.xp.commands.reward",
-                          "cogs.xp.commands.rolescalar",
-                          "cogs.xp.commands.set",
-                          "cogs.xp.commands.show"
                           ]
 
     def __init__(self, guild, *args, **kwargs):
@@ -91,6 +83,7 @@ class GuildBot(commands.Bot):
     async def load_extension(self, extension_name: str, *args, **kwargs) -> None:
         if extension_name in self.loaded_extensions:
             return
+        print(f"Loading {extension_name}")
         await super().load_extension(extension_name, *args, **kwargs)
         self.loaded_extensions.add(extension_name)
 
@@ -109,10 +102,11 @@ async def load_dependencies(bot: GuildBot, cog: commands.Cog.__class__) -> None:
     await cog.load_dependencies(bot)
 
 
-def extension_setup(*args: [commands.Cog.__class__]) -> Callable[[GuildBot], Awaitable[None]]:
+def extension_setup(*cogs: commands.Cog.__class__) -> Callable[[GuildBot], Awaitable[None]]:
     async def setup(bot: GuildBot) -> None:
-        for cog in args:
+        for cog in cogs:
             await load_dependencies(bot, cog)
+            print(cog)
             new_cog = cog(bot)
             await bot.add_cog(new_cog, guilds=[bot.guild])
             await load_features(bot, cog)
