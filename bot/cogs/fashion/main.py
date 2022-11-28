@@ -2,16 +2,18 @@ from typing import Optional
 import discord
 import logging
 from discord.ext import commands, tasks
-from bot.main import GuildBot, extension_setup
+from bot.main import GuildBot, extension_setup, FeatureCog
 import bot.exceptions as exceptions
 from bot.cogs.fashion.group import FashionCommandGroup as FashionCommandGroupCog
 from bot.cogs.fashion.database import FashionDatabaseAccessor
 
 
-class FashionHandler(commands.Cog):
+class FashionHandler(FeatureCog):
     __slots__ = ["database"]
 
     def __init__(self):
+        super().__init__()
+
         self.database = FashionDatabaseAccessor()
 
 
