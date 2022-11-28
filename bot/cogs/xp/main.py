@@ -6,7 +6,7 @@ import discord
 import logging
 from discord import Member as DiscordMember
 from discord.ext import commands, tasks
-from bot.main import GuildBot, extension_setup
+from bot.main import FeatureCog, GuildBot, extension_setup
 import bot.exceptions as exceptions
 from bot.subscribable import SubscribableEvent
 from bot.cogs.xp.group import XPCommandGroup as XPCommandGroupCog
@@ -25,7 +25,6 @@ class ExperienceQuantityType(Enum):
 
 
 class ExperienceMember(discord.Member):
-
     __slots__ = (
         "xp_handler",
         "level",
@@ -80,7 +79,20 @@ class ExperienceMember(discord.Member):
         return self.xp_handler.level_curve.get_level_from_experience(self.xp_quantity)
 
 
-class XPHandling(commands.Cog):
+class XPHandling(FeatureCog):
+    dependencies = ["cogs.xp.group"]
+    features = ["cogs.xp.listeners",
+                "cogs.xp.voice",
+                "cogs.xp.commands.autorole",
+                "cogs.xp.commands.announce",
+                "cogs.xp.commands.curve",
+                "cogs.xp.commands.leaderboard",
+                "cogs.xp.commands.reward",
+                "cogs.xp.commands.rolescalar",
+                "cogs.xp.commands.set",
+                "cogs.xp.commands.show"
+                ]
+
     data_directory = "data/xp/"
     database_filename = "experience.sql"
 
@@ -144,7 +156,8 @@ class XPHandling(commands.Cog):
             return self.generic_select(self.experience_schema_with_rank_subquery(), field_names, "userid=?")
 
         def select_many_members_by_userid(self, field_names, number_of_user_ids):
-            return self.generic_select(self.experience_schema_with_rank_subquery(), field_names, f"userid IN ({', '.join(['?'] * number_of_user_ids)})")
+            return self.generic_select(self.experience_schema_with_rank_subquery(), field_names,
+                                       f"userid IN ({', '.join(['?'] * number_of_user_ids)})")
 
         def select_many_members_by_condition(self, field_names, condition):
             return self.generic_select(self.experience_schema_with_rank_subquery(), field_names, condition)
@@ -231,7 +244,9 @@ class XPHandling(commands.Cog):
         def get_level_progress_from_experience(self, xp_quantity: float) -> float:
             """Query progress from the previous to the next level based upon an XP quantity."""
             from_level = self.get_floored_level_from_experience(xp_quantity)
-            return self.get_experience_above_level(xp_quantity, from_level) / self.get_relative_level_experience_requirement(from_level+1)
+            return self.get_experience_above_level(xp_quantity,
+                                                   from_level) / self.get_relative_level_experience_requirement(
+                from_level + 1)
 
         def get_level_from_experience(self, xp_quantity: float) -> float:
             """Query the exact experience level (as float) of an arbitrary user based on XP quantity."""
@@ -288,7 +303,11 @@ class XPHandling(commands.Cog):
 
     def save_all_guild_data(self):
         with self.database_connection, SafeCursor(self.database_connection) as cursor:
-            cursor.execute(f"UPDATE GuildData SET announce_level_up_channel_id=?, curve_scalar=?, curve_power=?, reward_voice=?, reward_message=?, reward_reply=?, reward_react=?, xp_gain_cap=? WHERE guildid=?", (self.announce_level_up_channel_id, self.level_curve_scalar, self.level_curve_power, self.reward_xp_voice, self.reward_xp_message, self.reward_xp_reply, self.reward_xp_react, self.xp_gain_cap, self.bot.guild.id,))
+            cursor.execute(
+                f"UPDATE GuildData SET announce_level_up_channel_id=?, curve_scalar=?, curve_power=?, reward_voice=?, reward_message=?, reward_reply=?, reward_react=?, xp_gain_cap=? WHERE guildid=?",
+                (self.announce_level_up_channel_id, self.level_curve_scalar, self.level_curve_power,
+                 self.reward_xp_voice, self.reward_xp_message, self.reward_xp_reply, self.reward_xp_react,
+                 self.xp_gain_cap, self.bot.guild.id,))
 
     def load_all_guild_data(self):
         with SafeCursor(self.database_connection) as cursor:
@@ -330,7 +349,8 @@ class XPHandling(commands.Cog):
         self.xp_gain_cap = cap
         self.save_all_guild_data()
 
-    def basic_database_query(self, query: str, fields: Optional[tuple[Any, ...]] = tuple(), quantity: Optional[int] = 1) -> [sqlite3.Row] or sqlite3.Row or None:
+    def basic_database_query(self, query: str, fields: Optional[tuple[Any, ...]] = tuple(),
+                             quantity: Optional[int] = 1) -> [sqlite3.Row] or sqlite3.Row or None:
         """Basic experience database query.
         When Quantity is 1, returns a tuple representing a database entry.
         When Quantity is a positive integer or -1, returns a list of tuples, each tuple representing a database entry.
@@ -382,7 +402,8 @@ class XPHandling(commands.Cog):
         field_names : [str]
             Array of field names to query.
         """
-        return self.basic_database_query(self.sql_commands.select_many_members_by_userid(field_names, len(user_ids)), tuple(user_ids), -1)
+        return self.basic_database_query(self.sql_commands.select_many_members_by_userid(field_names, len(user_ids)),
+                                         tuple(user_ids), -1)
 
     def basic_database_execute(self, command: str, fields: tuple[Any, ...] = tuple()):
         with self.database_connection, SafeCursor(self.database_connection) as cursor:
@@ -398,10 +419,12 @@ class XPHandling(commands.Cog):
             cursor.executemany(command, fields_array)
 
     def database_update_by_userid(self, user_id: int, fields: dict[str, Any]):
-        self.basic_database_execute(self.sql_commands.update_by_userid(fields.keys()), tuple(fields.values()) + (user_id,))
+        self.basic_database_execute(self.sql_commands.update_by_userid(fields.keys()),
+                                    tuple(fields.values()) + (user_id,))
 
     def database_update_many_by_userid(self, data: dict[int, tuple[Any, ...]], field_names: tuple[str, ...]):
-        self.basic_database_execute_many(self.sql_commands.update_by_userid(field_names), tuple([values + (user_id,) for user_id, values in data.items()]))
+        self.basic_database_execute_many(self.sql_commands.update_by_userid(field_names),
+                                         tuple([values + (user_id,) for user_id, values in data.items()]))
 
     def database_insert_userid(self, user_id: int):
         self.basic_database_execute(self.sql_commands.insert_userid(), (user_id,))
@@ -418,7 +441,8 @@ class XPHandling(commands.Cog):
             fields["assign_at"] = assign_at
         if remove_at is not None:
             fields["remove_at"] = remove_at
-        self.basic_database_execute(self.sql_commands.update_auto_role(fields.keys()), tuple(fields.values()) + (role_id,))
+        self.basic_database_execute(self.sql_commands.update_auto_role(fields.keys()),
+                                    tuple(fields.values()) + (role_id,))
 
     def database_delete_autorole(self, role_id: int):
         self.basic_database_execute(self.sql_commands.delete_auto_role(), (role_id,))
@@ -452,7 +476,8 @@ class XPHandling(commands.Cog):
             fields["scalar"] = scalar
         if priority is not None:
             fields["priority"] = priority
-        self.basic_database_execute(self.sql_commands.update_role_scalar(fields.keys()), tuple(fields.values()) + (role_id,))
+        self.basic_database_execute(self.sql_commands.update_role_scalar(fields.keys()),
+                                    tuple(fields.values()) + (role_id,))
 
     def database_delete_role_scalar(self, role_id: int):
         self.basic_database_execute(self.sql_commands.delete_role_scalar(), (role_id,))
@@ -571,7 +596,8 @@ class XPHandling(commands.Cog):
         xp_additions : dict[int, float]
             A dictionary of user_id to xp_quantity to add.
         """
-        current_data = self.database_get_many_by_userid(xp_additions.keys(), ("userid", "experience", "experience_level"))
+        current_data = self.database_get_many_by_userid(xp_additions.keys(),
+                                                        ("userid", "experience", "experience_level"))
 
         to_write = {}
         to_insert = []

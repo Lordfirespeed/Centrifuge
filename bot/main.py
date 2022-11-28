@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Awaitable, Callable, Optional
 from os import getenv, getcwd
 import logging
@@ -7,8 +8,32 @@ from dotenv import load_dotenv
 from bot.theme import EmbedTheme
 
 
-class FeatureCog(commands.Cog.__class__):
-    dependents = Optional[tuple[str]]
+class FeatureCog(commands.Cog):
+    dependencies = Optional[tuple[str]]
+    features = Optional[tuple[str]]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    async def load_features(cls, bot: GuildBot) -> None:
+        if cls.features is None:
+            return
+        if len(cls.features) == 0:
+            return
+
+        for dependent in cls.features:
+            await bot.load_extension(dependent)
+
+    @classmethod
+    async def load_dependencies(cls, bot: GuildBot) -> None:
+        if cls.dependencies is None:
+            return
+        if len(cls.dependencies) == 0:
+            return
+
+        for dependency in cls.dependencies:
+            await bot.load_extension(dependency)
 
 
 class GuildBot(commands.Bot):
@@ -16,24 +41,14 @@ class GuildBot(commands.Bot):
                           "cogs.misc.ping",
                           "cogs.misc.restart",
                           "cogs.misc.badger",
-                          "cogs.xp.group",
                           "cogs.xp.main",
-                          "cogs.xp.listeners",
-                          "cogs.xp.voice",
-                          "cogs.xp.commands.autorole",
-                          "cogs.xp.commands.announce",
-                          "cogs.xp.commands.curve",
-                          "cogs.xp.commands.leaderboard",
-                          "cogs.xp.commands.reward",
-                          "cogs.xp.commands.rolescalar",
-                          "cogs.xp.commands.set",
-                          "cogs.xp.commands.show"
                           ]
 
     def __init__(self, guild, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.guild: discord.Guild = guild
         self.embed_theme = EmbedTheme("Main", discord.Colour.from_rgb(0, 145, 255))
+        self.loaded_extensions = set()
 
     async def lookup_member(self, member_id: int):
         if type(member_id) is not int:
@@ -65,25 +80,33 @@ class GuildBot(commands.Bot):
 
         await self.tree.sync(guild=self.guild)
 
-    async def load_extension(self, *args, **kwargs) -> None:
-        await super().load_extension(*args, **kwargs)
+    async def load_extension(self, extension_name: str, *args, **kwargs) -> None:
+        if extension_name in self.loaded_extensions:
+            return
+        print(f"Loading {extension_name}")
+        await super().load_extension(extension_name, *args, **kwargs)
+        self.loaded_extensions.add(extension_name)
 
 
-async def load_features(bot: GuildBot, cog: FeatureCog) -> None:
-    if not isinstance(cog, FeatureCog):
+async def load_features(bot: GuildBot, cog: commands.Cog.__class__) -> None:
+    if not issubclass(cog, FeatureCog):
         return
-    if cog.dependents is None:
+
+    await cog.load_features(bot)
+
+
+async def load_dependencies(bot: GuildBot, cog: commands.Cog.__class__) -> None:
+    if not issubclass(cog, FeatureCog):
         return
-    if len(cog.dependents) == 0:
-        return
 
-    for dependent in cog.dependents:
-        await bot.load_extension(dependent)
+    await cog.load_dependencies(bot)
 
 
-def extension_setup(*args: [commands.Cog.__class__]) -> Callable[[GuildBot], Awaitable[None]]:
+def extension_setup(*cogs: commands.Cog.__class__) -> Callable[[GuildBot], Awaitable[None]]:
     async def setup(bot: GuildBot) -> None:
-        for cog in args:
+        for cog in cogs:
+            await load_dependencies(bot, cog)
+            print(cog)
             new_cog = cog(bot)
             await bot.add_cog(new_cog, guilds=[bot.guild])
             await load_features(bot, cog)
