@@ -27,8 +27,7 @@ class GuildBot(commands.Bot):
                           "cogs.xp.commands.reward",
                           "cogs.xp.commands.rolescalar",
                           "cogs.xp.commands.set",
-                          "cogs.xp.commands.show",
-                          "cogs.fashion.main"
+                          "cogs.xp.commands.show"
                           ]
 
     def __init__(self, guild, *args, **kwargs):
@@ -70,7 +69,7 @@ class GuildBot(commands.Bot):
         await super().load_extension(*args, **kwargs)
 
 
-async def load_dependencies(bot: GuildBot, cog: FeatureCog) -> None:
+async def load_features(bot: GuildBot, cog: FeatureCog) -> None:
     if not isinstance(cog, FeatureCog):
         return
     if cog.dependents is None:
@@ -87,7 +86,7 @@ def extension_setup(*args: [commands.Cog.__class__]) -> Callable[[GuildBot], Awa
         for cog in args:
             new_cog = cog(bot)
             await bot.add_cog(new_cog, guilds=[bot.guild])
-            await load_dependencies(bot, cog)
+            await load_features(bot, cog)
 
     return setup
 
