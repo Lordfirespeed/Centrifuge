@@ -9,14 +9,18 @@ from bot.theme import EmbedTheme
 
 
 class FeatureCog(commands.Cog):
-    dependencies = Optional[tuple[str]]
-    features = Optional[tuple[str]]
+    dependencies: Optional[tuple[str]]
+    features: Optional[tuple[str]]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, bot):
+        self.bot = bot
 
     @classmethod
     async def load_features(cls, bot: GuildBot) -> None:
+        try:
+            cls.features
+        except AttributeError:
+            return
         if cls.features is None:
             return
         if len(cls.features) == 0:
@@ -27,6 +31,10 @@ class FeatureCog(commands.Cog):
 
     @classmethod
     async def load_dependencies(cls, bot: GuildBot) -> None:
+        try:
+            cls.dependencies
+        except AttributeError:
+            return
         if cls.dependencies is None:
             return
         if len(cls.dependencies) == 0:
@@ -42,6 +50,7 @@ class GuildBot(commands.Bot):
                           "cogs.misc.restart",
                           "cogs.misc.badger",
                           "cogs.xp.main",
+                          "cogs.fashion.main"
                           ]
 
     def __init__(self, guild, *args, **kwargs):

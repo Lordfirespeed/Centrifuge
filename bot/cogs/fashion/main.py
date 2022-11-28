@@ -11,15 +11,14 @@ from bot.cogs.fashion.database import FashionDatabaseAccessor
 class FashionHandler(FeatureCog):
     __slots__ = ["database"]
 
-    def __init__(self):
-        super().__init__()
-
+    def __init__(self, bot: GuildBot):
+        super().__init__(bot)
         self.database = FashionDatabaseAccessor()
 
 
-class FashionCog(commands.Cog):
+class FashionCog(FeatureCog):
     def __init__(self, bot: GuildBot):
-        self.bot = bot
+        super().__init__(bot)
         self.handler: Optional[FashionCog] = None
         self.command_group_cog: Optional[FashionCommandGroupCog] = None
 
