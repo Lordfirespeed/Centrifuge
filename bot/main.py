@@ -7,10 +7,8 @@ from dotenv import load_dotenv
 from bot.theme import EmbedTheme
 
 
-class DependentCog(commands.Cog.__class__):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.dependencies = Optional[tuple[str]]
+class FeatureCog(commands.Cog.__class__):
+    dependents = Optional[tuple[str]]
 
 
 class GuildBot(commands.Bot):
@@ -71,16 +69,16 @@ class GuildBot(commands.Bot):
         await super().load_extension(*args, **kwargs)
 
 
-async def load_dependencies(bot: GuildBot, cog: DependentCog) -> None:
-    if not isinstance(cog, DependentCog):
+async def load_features(bot: GuildBot, cog: FeatureCog) -> None:
+    if not isinstance(cog, FeatureCog):
         return
-    if cog.dependencies is None:
+    if cog.dependents is None:
         return
-    if len(cog.dependencies) == 0:
+    if len(cog.dependents) == 0:
         return
 
-    for dependency in cog.dependencies:
-        await bot.load_extension(dependency)
+    for dependent in cog.dependents:
+        await bot.load_extension(dependent)
 
 
 def extension_setup(*args: [commands.Cog.__class__]) -> Callable[[GuildBot], Awaitable[None]]:
@@ -88,7 +86,7 @@ def extension_setup(*args: [commands.Cog.__class__]) -> Callable[[GuildBot], Awa
         for cog in args:
             new_cog = cog(bot)
             await bot.add_cog(new_cog, guilds=[bot.guild])
-            await load_dependencies(bot, cog)
+            await load_features(bot, cog)
 
     return setup
 
