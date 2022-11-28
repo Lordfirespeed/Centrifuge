@@ -29,7 +29,8 @@ class GuildBot(commands.Bot):
                           "cogs.xp.commands.reward",
                           "cogs.xp.commands.rolescalar",
                           "cogs.xp.commands.set",
-                          "cogs.xp.commands.show"
+                          "cogs.xp.commands.show",
+                          "cogs.fashion.main"
                           ]
 
     def __init__(self, guild, *args, **kwargs):
