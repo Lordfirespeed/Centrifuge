@@ -41,7 +41,8 @@ class GuildBot(commands.Bot):
                           "cogs.misc.ping",
                           "cogs.misc.restart",
                           "cogs.misc.badger",
-                          "cogs.xp.main",
+                          "cogs.misc.randomiser",
+                          "cogs.xp.main"
                           ]
 
     def __init__(self, guild, *args, **kwargs):

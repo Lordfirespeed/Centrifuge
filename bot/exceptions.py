@@ -20,17 +20,22 @@ def standard_error_handling(method):
 
 
 class CustomErrorBase(Exception):
-    def __init__(self, message):
-        self.message = message
+    def __init__(self, message=None):
+        if message is not None:
+            self.message = message
 
 
 class ConflictError(CustomErrorBase):
-    pass
+    message = "You tried to do something that would cause a conflict."
+
+
+class ContextError(CustomErrorBase):
+    message = "You can't use this command right now."
 
 
 class NotFoundError(CustomErrorBase):
-    pass
+    message = "Whatever you're looking for, it's not here!"
 
 
 class ValueErrorWithMessage(CustomErrorBase):
-    pass
+    message = "Something was wrong with the parameters you provided."
