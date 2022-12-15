@@ -24,9 +24,9 @@ class RandomiserCommands(commands.Cog, name="Randomiser Commands"):
         self.register_commands()
 
     @staticmethod
-    def send_response(interaction: discord.Interaction, choices: [Any]) -> None:
+    async def send_response(interaction: discord.Interaction, choices: [Any]) -> None:
         selected = random_choice(choices)
-        interaction.response.send_message(f"{selected.mention}, you have been selected!")
+        await interaction.response.send_message(f"{selected.mention}, you have been selected!")
 
     def register_commands(self) -> None:
         @self.command_group.command(name="party")
@@ -47,7 +47,7 @@ class RandomiserCommands(commands.Cog, name="Randomiser Commands"):
                 raise ContextError("You're in a voice channel, but not in this server!")
 
             voice_channel = interaction.user.voice.channel
-            self.send_response(interaction, voice_channel.members)
+            await self.send_response(interaction, voice_channel.members)
 
         # @self.command_group.command(name="list")
         # @standard_error_handling
