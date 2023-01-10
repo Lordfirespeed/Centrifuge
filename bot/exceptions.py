@@ -13,6 +13,8 @@ def standard_error_handling(method):
             await interaction.response.send_message(error.message, ephemeral=True)
         except app_commands.CommandOnCooldown as error:
             await interaction.response.send_message(str(error), ephemeral=True)
+        except NotImplementedError:
+            await interaction.response.send_message(f"This command has not been implemented - contact <@290259615059279883>")
         except Exception as error:
             logging.exception(error)
             await interaction.response.send_message("Unexpected error occurred, please try again.", ephemeral=True)

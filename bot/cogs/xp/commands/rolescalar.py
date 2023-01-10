@@ -12,10 +12,12 @@ class ScalarCommands(XPCommandCog):
         self.scalar_command_group: Optional[app_commands.Group] = None
 
     def create_groups(self) -> None:
-        self.scalar_command_group = app_commands.Group(name="rolescalar",
-                                                       description="Commands relating to role XP scalars.",
-                                                       guild_only=True,
-                                                       parent=self.command_group_cog.admin_xp_commands)
+        self.scalar_command_group = app_commands.Group(
+            name="rolescalar",
+            description="Commands relating to role XP scalars.",
+            guild_only=True,
+            parent=self.command_group_cog.admin_xp_commands
+        )
 
     def register_commands(self) -> None:
         @self.scalar_command_group.command(name="assign")
@@ -38,7 +40,8 @@ class ScalarCommands(XPCommandCog):
                 The priority of the XP scalar. Higher priorities will be applied in place of lower priorities.
             """
             self.handler.assign_role_scalar(role, power, priority)
-            await interaction.response.send_message(f"Successfully assigned XP scalar `{power}` to {role.mention} with priority `{priority}`.")
+            await interaction.response.send_message(
+                f"Successfully assigned XP scalar `{power}` to {role.mention} with priority `{priority}`.")
 
         @self.scalar_command_group.command(name="modify")
         @standard_error_handling
@@ -88,7 +91,7 @@ class ScalarCommands(XPCommandCog):
             interaction : discord.Interaction
                 The interaction object.
             """
-            pass
+            raise NotImplementedError
 
         @self.scalar_command_group.command(name="show")
         @standard_error_handling
@@ -103,7 +106,7 @@ class ScalarCommands(XPCommandCog):
             role : discord.Role
                 The role whose XP scalar will be displayed.
             """
-            pass
+            raise NotImplementedError
 
 
 setup = extension_setup(ScalarCommands)

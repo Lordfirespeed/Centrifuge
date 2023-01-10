@@ -18,10 +18,12 @@ class AutoroleCommands(XPCommandCog):
         self.handler.level_changed_event.subscribe(self.refresh_experience_member_autoroles)
 
     def create_groups(self) -> None:
-        self.autorole_command_group = app_commands.Group(name="autorole",
-                                                         description="Commands relating to automatically assigning roles based on user XP levels.",
-                                                         guild_only=True,
-                                                         parent=self.command_group_cog.admin_xp_commands)
+        self.autorole_command_group = app_commands.Group(
+            name="autorole",
+            description="Commands relating to automatically assigning roles based on user XP levels.",
+            guild_only=True,
+            parent=self.command_group_cog.admin_xp_commands
+        )
 
     def register_commands(self) -> None:
         @self.autorole_command_group.command(name="create")
@@ -92,7 +94,7 @@ class AutoroleCommands(XPCommandCog):
         @self.autorole_command_group.command(name="summary")
         @app_commands.default_permissions(manage_guild=True)
         @standard_error_handling
-        async def summarise_scalars(interaction: discord.Interaction):
+        async def summarise_autoroles(interaction: discord.Interaction):
             """Summarise all autorole info for the server.
 
             Parameters
@@ -100,12 +102,12 @@ class AutoroleCommands(XPCommandCog):
             interaction : discord.Interaction
                 The interaction object.
             """
-            pass
+            raise NotImplementedError
 
         @self.autorole_command_group.command(name="show")
         @app_commands.default_permissions(manage_guild=True)
         @standard_error_handling
-        async def show_scalar(interaction: discord.Interaction,
+        async def show_autorole(interaction: discord.Interaction,
                               role: discord.Role):
             """Show the autorole info for a role, if any exists.
 
@@ -116,7 +118,7 @@ class AutoroleCommands(XPCommandCog):
             role : discord.Role
                 The role whose autorole info will be displayed.
             """
-            pass
+            raise NotImplementedError
 
         @self.command_group_cog.xp_commands.command(name="refreshmyroles")
         @standard_error_handling
@@ -131,7 +133,7 @@ class AutoroleCommands(XPCommandCog):
                           member: discord.Member):
             """Refresh a member's XP autoroles. Use this if you believe they're missing XP level roles."""
             await self.refresh_member_autoroles(member)
-            await interaction.response.send_message(f"Successfully refreshed {interaction.user.mention}'s XP level autoroles.")
+            await interaction.response.send_message(f"Successfully refreshed {member.mention}'s XP level autoroles.")
 
     def map_role_ids_to_roles(self, role_ids: [int]) -> [discord.Role]:
         return map(self.bot.guild.get_role, role_ids)
