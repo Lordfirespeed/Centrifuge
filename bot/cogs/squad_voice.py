@@ -22,8 +22,8 @@ class SquadVoice(commands.Cog):
         self.channel_creators = {}
         self.all_temporary_channels = {}
 
-        self.channel_creators_path = Path(self.data_directory, self.channel_creators_filename)
-        self.temporary_channels_path = Path(self.data_directory, self.temporary_channels_filename)
+        self.channel_creators_path = Path(self.data_directory, self.channel_creators_filename).resolve()
+        self.temporary_channels_path = Path(self.data_directory, self.temporary_channels_filename).resolve()
 
         self.voice_creator_commands: Optional[app_commands.Group] = None
         self.created_channel_commands: Optional[app_commands.Group] = None
@@ -33,6 +33,7 @@ class SquadVoice(commands.Cog):
         self.register_voice_creator_commands_to_group()
         self.register_created_channel_commands_to_group()
 
+        Path(self.data_directory).mkdir(exist_ok=True)
         self.channel_creators_path.touch(exist_ok=True)
         self.temporary_channels_path.touch(exist_ok=True)
 

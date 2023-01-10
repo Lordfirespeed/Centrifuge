@@ -41,7 +41,8 @@ class GuildBot(commands.Bot):
                           "cogs.misc.ping",
                           "cogs.misc.restart",
                           "cogs.misc.badger",
-                          "cogs.xp.main",
+                          "cogs.misc.randomiser",
+                          "cogs.xp.main"
                           ]
 
     def __init__(self, guild, *args, **kwargs):
@@ -83,7 +84,7 @@ class GuildBot(commands.Bot):
     async def load_extension(self, extension_name: str, *args, **kwargs) -> None:
         if extension_name in self.loaded_extensions:
             return
-        logging.debug(f"Loading {extension_name}...")
+        logging.debug(f"Loading extension {extension_name}...")
         await super().load_extension(extension_name, *args, **kwargs)
         self.loaded_extensions.add(extension_name)
 
@@ -106,7 +107,7 @@ def extension_setup(*cogs: commands.Cog.__class__) -> Callable[[GuildBot], Await
     async def setup(bot: GuildBot) -> None:
         for cog in cogs:
             await load_dependencies(bot, cog)
-            print(cog)
+            logging.debug(f"Loading cog {cog.__name__}")
             new_cog = cog(bot)
             await bot.add_cog(new_cog, guilds=[bot.guild])
             await load_features(bot, cog)
@@ -133,6 +134,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, filename="botlog.log", filemode="w")
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(filename="botlog.log", mode="w"),
+            logging.StreamHandler()
+        ]
+    )
     logging.debug(f"CWD: {getcwd()}")
     main()
