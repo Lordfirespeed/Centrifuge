@@ -609,7 +609,11 @@ class XPHandling(FeatureCog):
 
         async def process_addition(user_id: int, old_experience: float, old_level):
             to_add_experience = min(xp_additions[user_id], self.xp_gain_cap)
-            member = await self.bot.lookup_member(user_id)
+            try:
+                member = await self.bot.lookup_member(user_id)
+            except discord.errors.NotFound:
+                logging.debug(f"Failed to add some XP to user with id {user_id} in guild {self.bot.guild.id} as they could not be found.")
+                return
             this_member_scalars = {}
             for role in member.roles:
                 try:
