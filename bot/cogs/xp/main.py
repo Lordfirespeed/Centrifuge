@@ -93,7 +93,7 @@ class XPHandling(FeatureCog):
                 "bot.cogs.xp.commands.show"
                 ]
 
-    data_directory = "bot/data/xp/"
+    data_directory = "data/xp/"
     database_filename = "experience.sql"
 
     defaults = {"level_curve_scalar": 100,

@@ -57,7 +57,7 @@ class ExtraCardFields:
         return str(colour.to_rgb())[1:-1]
 
     def load_party_emoji(self):
-        with open("bot/data/xp/party_emojis.json") as party_emoji_file:
+        with open("data/xp/party_emojis.json") as party_emoji_file:
             try:
                 party_emoji_data = json.load(party_emoji_file)
             except json.decoder.JSONDecodeError:
@@ -79,8 +79,8 @@ class ExtraCardFields:
 
 class UserDisplayCard:
     global html_renderer
-    temp_directory = Path("bot/data/xp/temp_cards/")
-    card_directory = Path("bot/data/xp/html_cards/")
+    temp_directory = Path("data/xp/temp_cards/")
+    card_directory = Path("data/xp/html_cards/")
     extra_fields_generator = ExtraCardFields()
     extra_fields = {UserDisplayCardType.DisplayProgress: {"previous_level_requirement": extra_fields_generator.previous_level_requirement,
                                                           "next_level_requirement": extra_fields_generator.next_level_requirement,

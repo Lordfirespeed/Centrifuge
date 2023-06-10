@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 class SquadVoice(commands.Cog):
-    data_directory = "bot/data/squad_voice/"
+    data_directory = "data/squad_voice/"
     channel_creators_filename = "channel-creators.json"
     temporary_channels_filename = "temporary-channels.json"
 
