@@ -1,11 +1,9 @@
 from __future__ import annotations
 from typing import Awaitable, Callable, Optional
-from os import getenv, getcwd
 import logging
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
-from bot.theme import EmbedTheme
+from .theme import EmbedTheme
 
 
 class FeatureCog(commands.Cog):
@@ -37,12 +35,12 @@ class FeatureCog(commands.Cog):
 
 
 class GuildBot(commands.Bot):
-    initial_extensions = ["cogs.squad_voice",
-                          "cogs.misc.ping",
-                          "cogs.misc.restart",
-                          "cogs.misc.badger",
-                          "cogs.misc.randomiser",
-                          "cogs.xp.main"
+    initial_extensions = ["bot.cogs.squad_voice",
+                          "bot.cogs.misc.ping",
+                          "bot.cogs.misc.restart",
+                          "bot.cogs.misc.badger",
+                          "bot.cogs.misc.randomiser",
+                          "bot.cogs.xp.main"
                           ]
 
     def __init__(self, guild, *args, **kwargs):
@@ -115,32 +113,4 @@ def extension_setup(*cogs: commands.Cog.__class__) -> Callable[[GuildBot], Await
     return setup
 
 
-def main() -> None:
-    load_dotenv()
 
-    token = getenv("APPLICATION_TOKEN")
-    server_id = int(getenv("DISCORD_SERVER_ID"))
-    guild = discord.Object(id=server_id)
-
-    intents = discord.Intents.none()
-    intents.guilds = True
-    intents.guild_messages = True
-    intents.guild_reactions = True
-    intents.voice_states = True
-    intents.members = True
-    bot = GuildBot(guild, command_prefix=">", intents=intents, case_insensitive=True)
-
-    bot.run(token)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(filename="botlog.log", mode="w"),
-            logging.StreamHandler()
-        ]
-    )
-    logging.debug(f"CWD: {getcwd()}")
-    main()

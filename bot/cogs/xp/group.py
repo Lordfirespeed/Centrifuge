@@ -3,7 +3,7 @@ from typing import Optional
 import discord
 from discord import app_commands
 from discord.ext import commands
-from bot.main import GuildBot, extension_setup
+from bot.common import GuildBot, extension_setup
 
 
 class XPCommandGroup(commands.Cog):

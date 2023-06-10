@@ -1,7 +1,7 @@
 import discord
 import logging
 from discord.ext import commands, tasks
-from bot.main import GuildBot, extension_setup
+from bot.common import GuildBot, extension_setup
 from bot.cogs.xp.main import XPCog
 from datetime import datetime, timedelta
 

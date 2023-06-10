@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from bot.main import extension_setup
+from bot.common import extension_setup
 from bot.exceptions import ContextError, standard_error_handling
 from typing import Optional, Any
 from random import choice as random_choice

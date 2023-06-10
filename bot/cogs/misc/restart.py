@@ -2,7 +2,7 @@ import os
 import discord
 from discord import app_commands
 from discord.ext import commands
-from bot.main import extension_setup
+from bot.common import extension_setup
 from asyncio import Lock
 
 
@@ -29,7 +29,7 @@ class RestartCommand(commands.Cog, name="Restart Command"):
             return
 
         async with self.restarting:
-            path_to_start = os.path.join(os.getcwd(), "..", "start_bot.sh")
+            path_to_start = os.path.join(os.getcwd(), "start_bot.sh")
             if not (os.path.exists(path_to_start) and os.path.isfile(path_to_start)):
                 await interaction.response.send_message(f"Failed to find bot start script.", ephemeral=True)
                 return

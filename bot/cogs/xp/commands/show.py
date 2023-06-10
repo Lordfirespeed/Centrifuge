@@ -1,6 +1,6 @@
 import discord
 from discord import app_commands
-from bot.main import extension_setup
+from bot.common import extension_setup
 from bot.cogs.xp.main import XPCommandCog
 from bot.cogs.xp.card_generator import UserDisplayCard, UserDisplayCardType
 from bot.exceptions import standard_error_handling

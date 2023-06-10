@@ -3,7 +3,7 @@ import sqlite3
 from math import ceil
 import discord
 from discord import app_commands
-from bot.main import extension_setup
+from bot.common import extension_setup
 from bot.cogs.xp.main import XPCommandCog, ExperienceMember
 
 

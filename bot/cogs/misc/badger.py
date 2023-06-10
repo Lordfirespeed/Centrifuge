@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from bot.main import extension_setup
+from bot.common import extension_setup
 
 
 class BadgerCommand(commands.Cog, name="Badger Command"):

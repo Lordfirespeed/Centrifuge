@@ -8,12 +8,12 @@ from discord.ext import commands, tasks
 from collections import defaultdict
 import json
 import asyncio
-from bot.main import GuildBot, extension_setup
+from bot.common import GuildBot, extension_setup
 from pathlib import Path
 
 
 class SquadVoice(commands.Cog):
-    data_directory = "data/squad_voice/"
+    data_directory = "bot/data/squad_voice/"
     channel_creators_filename = "channel-creators.json"
     temporary_channels_filename = "temporary-channels.json"
 
@@ -65,7 +65,7 @@ class SquadVoice(commands.Cog):
     async def load_channel_creators_from_json(self):
         await self.bot.wait_until_ready()
 
-        with open("data/squad_voice/channel-creators.json", "r") as readfile:
+        with open(self.channel_creators_path, "r") as readfile:
             try:
                 channel_creators_data = json.load(readfile)
             except json.decoder.JSONDecodeError:
@@ -92,7 +92,7 @@ class SquadVoice(commands.Cog):
             self.channel_creators[channel_creator.channel.id] = channel_creator
 
     async def load_temporary_channels_from_json(self):
-        with open("data/squad_voice/temporary-channels.json", "r") as readfile:
+        with open(self.temporary_channels_path, "r") as readfile:
             try:
                 temporary_channels_data = json.load(readfile)
             except json.decoder.JSONDecodeError:

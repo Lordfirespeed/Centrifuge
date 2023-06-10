@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Any, Optional, Callable, Awaitable
+from typing import Any, Optional, Callable
 from contextlib import closing as contextlib_closing
 from collections import defaultdict
 import discord
 import logging
 from discord import Member as DiscordMember
 from discord.ext import commands, tasks
-from bot.main import FeatureCog, GuildBot, extension_setup
+from bot.common import FeatureCog, GuildBot, extension_setup
 import bot.exceptions as exceptions
 from bot.subscribable import SubscribableEvent
 from bot.cogs.xp.group import XPCommandGroup as XPCommandGroupCog
@@ -93,7 +93,7 @@ class XPHandling(FeatureCog):
                 "cogs.xp.commands.show"
                 ]
 
-    data_directory = "data/xp/"
+    data_directory = "bot/data/xp/"
     database_filename = "experience.sql"
 
     defaults = {"level_curve_scalar": 100,

@@ -2,7 +2,7 @@ from typing import Optional, Any
 import logging
 import discord
 from discord import app_commands
-from bot.main import extension_setup
+from bot.common import extension_setup
 from bot.exceptions import standard_error_handling
 from bot.cogs.xp.main import XPCommandCog, ExperienceMember
 
@@ -155,7 +155,6 @@ class AutoroleCommands(XPCommandCog):
         return self.get_auto_role_ids_by_condition("assign_at=?", (at_level,))
 
     def get_role_ids_to_deassign(self, at_level: int) -> [int]:
-        """Returns role IDs that should be newly deassigned at at_level."""
         return self.get_auto_role_ids_by_condition("remove_at=?", (at_level,))
 
     def get_comprehensive_roles_to_assign(self, at_level: int) -> [discord.Role]:
