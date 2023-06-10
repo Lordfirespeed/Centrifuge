@@ -9,7 +9,7 @@ from discord.ext import commands, tasks
 from bot.common import FeatureCog, GuildBot, extension_setup
 import bot.exceptions as exceptions
 from bot.subscribable import SubscribableEvent
-from bot.cogs.xp.group import XPCommandGroup as XPCommandGroupCog
+from .group import XPCommandGroup as XPCommandGroupCog
 import sqlite3
 from enum import Enum
 from math import exp, log, floor
@@ -80,17 +80,17 @@ class ExperienceMember(discord.Member):
 
 
 class XPHandling(FeatureCog):
-    dependencies = ["cogs.xp.group"]
-    features = ["cogs.xp.listeners",
-                "cogs.xp.voice",
-                "cogs.xp.commands.autorole",
-                "cogs.xp.commands.announce",
-                "cogs.xp.commands.curve",
-                "cogs.xp.commands.leaderboard",
-                "cogs.xp.commands.reward",
-                "cogs.xp.commands.rolescalar",
-                "cogs.xp.commands.set",
-                "cogs.xp.commands.show"
+    dependencies = ["bot.cogs.xp.group"]
+    features = ["bot.cogs.xp.listeners",
+                "bot.cogs.xp.voice",
+                "bot.cogs.xp.commands.autorole",
+                "bot.cogs.xp.commands.announce",
+                "bot.cogs.xp.commands.curve",
+                "bot.cogs.xp.commands.leaderboard",
+                "bot.cogs.xp.commands.reward",
+                "bot.cogs.xp.commands.rolescalar",
+                "bot.cogs.xp.commands.set",
+                "bot.cogs.xp.commands.show"
                 ]
 
     data_directory = "bot/data/xp/"
