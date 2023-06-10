@@ -1,8 +1,10 @@
 *.*env
 *.cmd
+*.log
 /venv*/
 /data/
 /misc/
 /.idea/
 /bot/botlog.log
 start_bot.*
+__pycache__
