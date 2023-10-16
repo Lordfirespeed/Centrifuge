@@ -612,8 +612,12 @@ class XPHandling(FeatureCog):
             try:
                 member = await self.bot.lookup_member(user_id)
             except discord.errors.NotFound:
-                logging.debug(f"Failed to add some XP to user with id {user_id} in guild {self.bot.guild.id} as they could not be found.")
+                logging.error(f"Failed to add some XP to user with id {user_id} in guild {self.bot.guild.id} as they could not be found.")
                 return
+            except Exception as error:
+                logging.error(f"Failed to add some XP to user with id {user_id} in guild {self.bot.guild.id} for reason: {error}")
+                return
+
             this_member_scalars = {}
             for role in member.roles:
                 try:
